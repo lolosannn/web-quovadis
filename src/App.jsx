@@ -561,7 +561,6 @@ const CAMPOS_VACIOS = {
   precio: "",
   fechaISO: "",
   hora: "",
-  genero: "",
   vibe: "",
   tipo: "Boliche",
   ambiente: "Aire libre",
@@ -571,8 +570,6 @@ const CAMPOS_VACIOS = {
   link: "",
   flyer: "",
   fotosExtra: [],
-  lat: "",
-  lng: "",
 };
 
 function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
@@ -638,13 +635,27 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
     </div>
   );
 
-  const handleSubmit = (e) => {
+  const [buscandoUbicacion, setBuscandoUbicacion] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!valores.nombre || !valores.zona || !valores.fechaISO) {
-      alert("Completá al menos nombre, zona y fecha.");
+      alert("Completá al menos nombre, localidad y fecha.");
       return;
     }
-    onGuardar(valores);
+    let lat = inicial?.lat ?? null;
+    let lng = inicial?.lng ?? null;
+    if (valores.barrio.trim()) {
+      setBuscandoUbicacion(true);
+      const encontrada = await geocodificarDireccion(
+        valores.barrio.trim(),
+        valores.zona.trim()
+      );
+      setBuscandoUbicacion(false);
+      lat = encontrada.lat;
+      lng = encontrada.lng;
+    }
+    onGuardar({ ...valores, lat, lng });
   };
 
   return (
@@ -667,7 +678,7 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
 
       <div className="mb-3">
         <label className="font-mono text-[10px] text-[#A8A2B8] uppercase tracking-widest block mb-1">
-          Región
+          Zona
         </label>
         <select
           value={valores.region}
@@ -680,16 +691,38 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
         </select>
       </div>
 
-      {campoTexto("zona", "Localidad / barrio", "Ej: Palermo")}
-      {campoTexto("barrio", "Barrio / dirección aprox.", "Ej: Palermo Soho")}
+      <div className="mb-3">
+        <label className="font-mono text-[10px] text-[#A8A2B8] uppercase tracking-widest block mb-1">
+          Localidad
+        </label>
+        <select
+          value={valores.zona}
+          onChange={set("zona")}
+          className="font-body w-full bg-white border border-[#E8E4DA] rounded-xl py-2 px-3 text-sm text-[#1C1A26] focus:outline-none focus:ring-2 focus:ring-[#8B7FD9]"
+        >
+          <option value="">Elegir...</option>
+          {BARRIOS_BA.map((b) => (
+            <option key={b}>{b}</option>
+          ))}
+        </select>
+      </div>
+
+      {campoTexto(
+        "barrio",
+        "Dirección exacta",
+        "Ej: Av. Costanera 1500, Palermo"
+      )}
+      <p className="font-body text-[10px] text-[#A8A2B8] mt-[-8px] mb-3 leading-relaxed">
+        Con esto alcanza — la app busca sola las coordenadas para el mapa al
+        guardar.
+      </p>
       {campoTexto("precio", "Precio", "Ej: 8000", "number")}
       {campoTexto("fechaISO", "Fecha", "", "date")}
       {campoTexto("hora", "Hora", "Ej: 23:30")}
-      {campoTexto("genero", "Género musical", "Ej: Techno / House")}
 
       <div className="mb-3">
         <label className="font-mono text-[10px] text-[#A8A2B8] uppercase tracking-widest block mb-1">
-          Descripción / vibe
+          Descripción
         </label>
         <textarea
           value={valores.vibe}
@@ -861,15 +894,6 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-1">
-        {campoTexto("lat", "Latitud (opcional)", "Ej: -34.5885", "number")}
-        {campoTexto("lng", "Longitud (opcional)", "Ej: -58.4306", "number")}
-      </div>
-      <p className="font-body text-[10px] text-[#A8A2B8] mb-4 leading-relaxed">
-        Sin latitud/longitud, la fiesta no va a aparecer en el mapa de "Cerca
-        de mí" — pero sí en el resto de la app.
-      </p>
-
       <div className="flex gap-3">
         <button
           type="button"
@@ -880,11 +904,20 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
         </button>
         <button
           type="submit"
-          disabled={subiendo}
+          disabled={subiendo || buscandoUbicacion}
           className="flex-1 flex items-center justify-center gap-2 font-body text-sm font-semibold bg-[#1C1A26] text-white py-3 rounded-full hover:opacity-90 transition-opacity disabled:opacity-50"
         >
-          <Save className="w-4 h-4" />
-          Guardar
+          {buscandoUbicacion ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Ubicando...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" />
+              Guardar
+            </>
+          )}
         </button>
       </div>
     </form>
@@ -892,20 +925,19 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
 }
 
 const COLUMNAS_CSV = [
-  "nombre", "tematica", "region", "zona", "barrio", "precio", "fecha",
-  "hora", "genero", "vibe", "tipo", "ambiente", "edadMinima",
-  "organizador", "telefonos", "link", "flyer_url", "fotos_urls", "lat", "lng",
+  "nombre", "tematica", "zona", "localidad", "direccion", "precio", "fecha",
+  "hora", "descripcion", "tipo", "ambiente", "edadMinima",
+  "organizador", "telefonos", "link", "flyer_url", "fotos_urls",
 ];
 
 function descargarPlantillaCSV() {
   const ejemplo = [
     "Neón Sur", "Electrónica/Techno", "Zona Norte", "Palermo",
-    "Palermo Soho", "8000", "2026-08-15", "23:30", "Techno / House",
+    "Av. Costanera 1500, Palermo", "8000", "2026-08-15", "23:30",
     "Rooftop, luces láser, línea hasta las 6am", "Boliche", "Aire libre",
     "18", "Facu (Neón Sur)", "+54 9 11 4455-6677", "https://instagram.com/neonsur",
     "https://i.postimg.cc/xxxxxxx/flyer.jpg",
     "https://i.postimg.cc/yyyyyyy/foto2.jpg;https://i.postimg.cc/zzzzzzz/foto3.jpg",
-    "-34.5885", "-58.4306",
   ];
   const csv =
     COLUMNAS_CSV.join(",") +
@@ -923,17 +955,35 @@ function descargarPlantillaCSV() {
   URL.revokeObjectURL(url);
 }
 
+async function geocodificarDireccion(direccion, localidad) {
+  const consulta = `${direccion}, ${localidad}, Buenos Aires, Argentina`;
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
+        consulta
+      )}`
+    );
+    const datos = await res.json();
+    if (datos && datos[0]) {
+      return { lat: Number(datos[0].lat), lng: Number(datos[0].lon) };
+    }
+  } catch (e) {
+    // Sin conexión o sin resultado: se deja sin coordenadas.
+  }
+  return { lat: null, lng: null };
+}
+
 function filaAFiesta(fila, indice) {
   const nombre = (fila.nombre || "").trim();
-  const zona = (fila.zona || "").trim();
+  const localidad = (fila.localidad || "").trim();
   const fecha = (fila.fecha || "").trim();
-  if (!nombre || !zona || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return null;
+  if (!nombre || !localidad || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return null;
 
   const tematica = GENEROS_MUSICALES.includes((fila.tematica || "").trim())
     ? fila.tematica.trim()
     : GENEROS_MUSICALES[0];
-  const region = REGIONES.includes((fila.region || "").trim())
-    ? fila.region.trim()
+  const region = REGIONES.includes((fila.zona || "").trim())
+    ? fila.zona.trim()
     : REGIONES[0];
   const tipo = ["Boliche", "Fiesta espontánea"].includes(
     (fila.tipo || "").trim()
@@ -945,6 +995,7 @@ function filaAFiesta(fila, indice) {
   )
     ? fila.ambiente.trim()
     : "Aire libre";
+  const direccion = (fila.direccion || "").trim();
 
   return {
     id: Date.now() + indice,
@@ -952,13 +1003,13 @@ function filaAFiesta(fila, indice) {
     nombre,
     tematica,
     region,
-    zona,
-    barrio: (fila.barrio || "").trim() || zona,
+    zona: localidad,
+    barrio: direccion || localidad,
     precio: Number(fila.precio) || 0,
     fechaISO: fecha,
     hora: (fila.hora || "").trim(),
-    genero: (fila.genero || "").trim(),
-    vibe: (fila.vibe || "").trim(),
+    genero: tematica,
+    vibe: (fila.descripcion || "").trim(),
     tipo,
     ambiente,
     edadMinima: Number(fila.edadMinima) || 18,
@@ -973,8 +1024,9 @@ function filaAFiesta(fila, indice) {
       .split(";")
       .map((u) => u.trim())
       .filter(Boolean),
-    lat: fila.lat ? Number(fila.lat) : null,
-    lng: fila.lng ? Number(fila.lng) : null,
+    _direccionParaUbicar: direccion ? `${direccion}, ${localidad}` : null,
+    lat: null,
+    lng: null,
   };
 }
 
@@ -983,6 +1035,34 @@ function ImportarFiestas({ fiestas, onImportar, onCancelar }) {
   const [filas, setFilas] = useState(null);
   const [filasInvalidas, setFilasInvalidas] = useState(0);
   const [error, setError] = useState(null);
+  const [geocodificando, setGeocodificando] = useState(false);
+  const [progresoGeo, setProgresoGeo] = useState({ hecho: 0, total: 0 });
+
+  const geocodificarTodas = async (lista) => {
+    const conDireccion = lista.filter((f) => f._direccionParaUbicar);
+    if (conDireccion.length === 0) return;
+
+    setGeocodificando(true);
+    setProgresoGeo({ hecho: 0, total: conDireccion.length });
+
+    for (let i = 0; i < conDireccion.length; i++) {
+      const f = conDireccion[i];
+      const { lat, lng } = await geocodificarDireccion(
+        f._direccionParaUbicar.split(",")[0],
+        f.zona
+      );
+      setFilas((actuales) =>
+        actuales
+          ? actuales.map((x) => (x.id === f.id ? { ...x, lat, lng } : x))
+          : actuales
+      );
+      setProgresoGeo({ hecho: i + 1, total: conDireccion.length });
+      if (i < conDireccion.length - 1) {
+        await new Promise((r) => setTimeout(r, 1100)); // no saturar el servicio gratuito
+      }
+    }
+    setGeocodificando(false);
+  };
 
   const procesarCSV = (texto) => {
     setError(null);
@@ -994,6 +1074,7 @@ function ImportarFiestas({ fiestas, onImportar, onCancelar }) {
         const validas = parseadas.filter(Boolean);
         setFilasInvalidas(parseadas.length - validas.length);
         setFilas(validas);
+        geocodificarTodas(validas);
       },
       error: () => setError("No se pudo leer el archivo. Revisá el formato."),
     });
@@ -1013,7 +1094,8 @@ function ImportarFiestas({ fiestas, onImportar, onCancelar }) {
 
   const confirmarImportacion = () => {
     if (!filas || filas.length === 0) return;
-    onImportar([...fiestas, ...filas]);
+    const limpias = filas.map(({ _direccionParaUbicar, ...f }) => f);
+    onImportar([...fiestas, ...limpias]);
   };
 
   return (
@@ -1027,11 +1109,14 @@ function ImportarFiestas({ fiestas, onImportar, onCancelar }) {
           <p className="font-body text-xs text-[#6B6580] leading-relaxed">
             Descargá la plantilla, completala en Excel/Sheets (una fila por
             fiesta), exportala como CSV, y subila o pegá su contenido acá
-            abajo. Para las fotos, completá las columnas{" "}
+            abajo. Con la columna{" "}
+            <span className="font-mono">direccion</span> alcanza — la app
+            busca sola las coordenadas para el mapa, no hace falta
+            calcularlas. Para las fotos, completá{" "}
             <span className="font-mono">flyer_url</span> y{" "}
             <span className="font-mono">fotos_urls</span> con links directos
             a las imágenes (subidas a postimages.org, imgbb.com, o
-            similar) — no hace falta subir los archivos acá.
+            similar).
           </p>
         </div>
       </div>
@@ -1072,7 +1157,7 @@ function ImportarFiestas({ fiestas, onImportar, onCancelar }) {
           else setFilas(null);
         }}
         rows={5}
-        placeholder="nombre,tematica,region,zona,barrio,precio,fecha,hora,..."
+        placeholder="nombre,tematica,zona,localidad,direccion,precio,fecha,hora,..."
         className="font-mono w-full bg-white border border-[#E8E4DA] rounded-xl py-2 px-3 text-xs text-[#1C1A26] placeholder-[#A8A2B8] focus:outline-none focus:ring-2 focus:ring-[#8B7FD9] mb-4"
       />
 
@@ -1093,7 +1178,17 @@ function ImportarFiestas({ fiestas, onImportar, onCancelar }) {
               <p className="font-body text-xs text-[#6B5A1E] leading-relaxed">
                 {filasInvalidas} fila{filasInvalidas !== 1 ? "s" : ""} se
                 {filasInvalidas !== 1 ? " saltearon" : " salteó"} por
-                faltarle nombre, zona o una fecha válida (AAAA-MM-DD).
+                faltarle nombre, localidad o una fecha válida (AAAA-MM-DD).
+              </p>
+            </div>
+          )}
+
+          {geocodificando && (
+            <div className="flex items-center gap-2 bg-[#EAE6F7] border border-[#D9D2F0] rounded-xl p-3 mb-3">
+              <Loader2 className="w-3.5 h-3.5 text-[#8B7FD9] animate-spin shrink-0" />
+              <p className="font-body text-xs text-[#4A4460]">
+                Buscando ubicaciones para el mapa... {progresoGeo.hecho}/
+                {progresoGeo.total}
               </p>
             </div>
           )}
@@ -1106,6 +1201,8 @@ function ImportarFiestas({ fiestas, onImportar, onCancelar }) {
                   className="font-mono text-[10px] text-[#6B6580] truncate"
                 >
                   {f.nombre} — {f.zona} · {formatFechaCorta(f.fechaISO)}
+                  {f._direccionParaUbicar &&
+                    (f.lat != null ? " · 📍" : !geocodificando ? " · sin ubicar" : "")}
                 </p>
               ))}
             </div>
@@ -1154,7 +1251,7 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
     precio: Number(v.precio) || 0,
     fechaISO: v.fechaISO,
     hora: v.hora.trim(),
-    genero: v.genero.trim(),
+    genero: v.tematica,
     vibe: v.vibe.trim(),
     tipo: v.tipo,
     ambiente: v.ambiente,
@@ -1167,8 +1264,8 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
     link: v.link.trim() || null,
     flyer: v.flyer.trim() || null,
     fotosExtra: v.fotosExtra,
-    lat: v.lat !== "" ? Number(v.lat) : null,
-    lng: v.lng !== "" ? Number(v.lng) : null,
+    lat: v.lat ?? null,
+    lng: v.lng ?? null,
   });
 
   const crearFiesta = (v) => {
@@ -1342,7 +1439,6 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
               precio: String(editando.precio ?? ""),
               fechaISO: editando.fechaISO || "",
               hora: editando.hora || "",
-              genero: editando.genero || "",
               vibe: editando.vibe || "",
               tipo: editando.tipo || "Boliche",
               ambiente: editando.ambiente || "Aire libre",
@@ -1352,8 +1448,8 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
               link: editando.link || "",
               flyer: editando.flyer || "",
               fotosExtra: editando.fotosExtra || [],
-              lat: editando.lat != null ? String(editando.lat) : "",
-              lng: editando.lng != null ? String(editando.lng) : "",
+              lat: editando.lat ?? null,
+              lng: editando.lng ?? null,
             }}
             onGuardar={actualizarFiesta}
             onCancelar={() => {
