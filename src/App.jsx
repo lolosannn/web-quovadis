@@ -45,6 +45,7 @@ function formatFechaCorta(fechaISO) {
 const FIESTAS_SEED = [
   {
     id: 1,
+    region: "Zona Norte",
     edadMinima: 18,
     tipo: "Boliche",
     ambiente: "Aire libre",
@@ -67,6 +68,7 @@ const FIESTAS_SEED = [
   },
   {
     id: 2,
+    region: "Zona Sur",
     edadMinima: 18,
     tipo: "Boliche",
     ambiente: "Cerrado",
@@ -89,6 +91,7 @@ const FIESTAS_SEED = [
   },
   {
     id: 3,
+    region: "Zona Sur",
     edadMinima: 21,
     tipo: "Fiesta espontánea",
     ambiente: "Cerrado",
@@ -111,6 +114,7 @@ const FIESTAS_SEED = [
   },
   {
     id: 4,
+    region: "Zona Oeste",
     edadMinima: 16,
     tipo: "Boliche",
     ambiente: "Aire libre",
@@ -131,6 +135,7 @@ const FIESTAS_SEED = [
   },
   {
     id: 5,
+    region: "Zona Oeste",
     edadMinima: 18,
     tipo: "Fiesta espontánea",
     ambiente: "Aire libre",
@@ -153,6 +158,7 @@ const FIESTAS_SEED = [
   },
   {
     id: 6,
+    region: "Zona Oeste",
     edadMinima: 18,
     tipo: "Fiesta espontánea",
     ambiente: "Cerrado",
@@ -173,6 +179,7 @@ const FIESTAS_SEED = [
   },
   {
     id: 7,
+    region: "Zona Sur",
     edadMinima: 18,
     tipo: "Fiesta espontánea",
     ambiente: "Aire libre",
@@ -197,6 +204,35 @@ const FIESTAS_SEED = [
 
 const TIPOS = ["Todos", "Boliche", "Fiesta espontánea"];
 const AMBIENTES = ["Todos", "Aire libre", "Cerrado"];
+const REGIONES = ["Zona Norte", "Zona Sur", "Zona Oeste"];
+const BARRIOS_BA = [
+  // CABA
+  "Agronomía", "Almagro", "Balvanera", "Barracas", "Belgrano", "Boedo",
+  "Caballito", "Chacarita", "Coghlan", "Colegiales", "Constitución",
+  "Flores", "Floresta", "La Boca", "La Paternal", "Liniers", "Mataderos",
+  "Monte Castro", "Nueva Pompeya", "Núñez", "Palermo", "Parque Avellaneda",
+  "Parque Chacabuco", "Parque Chas", "Parque Patricios", "Puerto Madero",
+  "Recoleta", "Retiro", "Saavedra", "San Cristóbal", "San Nicolás",
+  "San Telmo", "Vélez Sarsfield", "Versalles", "Villa Crespo",
+  "Villa del Parque", "Villa Devoto", "Villa General Mitre", "Villa Lugano",
+  "Villa Luro", "Villa Ortúzar", "Villa Pueyrredón", "Villa Real",
+  "Villa Riachuelo", "Villa Santa Rita", "Villa Soldati", "Villa Urquiza",
+  // Conurbano - Zona Norte
+  "Vicente López", "San Isidro", "San Fernando", "Tigre", "Pilar",
+  "Escobar", "San Miguel", "José C. Paz", "Malvinas Argentinas",
+  "General San Martín", "Tres de Febrero",
+  // Conurbano - Zona Oeste
+  "Hurlingham", "Ituzaingó", "Morón", "Merlo", "Moreno",
+  "General Rodríguez", "Marcos Paz", "La Matanza",
+  // Conurbano - Zona Sur
+  "Ezeiza", "Esteban Echeverría", "Canning", "Cañuelas", "San Vicente",
+  "Almirante Brown", "Lomas de Zamora", "Lanús", "Avellaneda", "Quilmes",
+  "Berazategui", "Florencio Varela",
+  // Provincia - otras ciudades
+  "La Plata", "Berisso", "Ensenada", "Mar del Plata", "Pinamar",
+  "Villa Gesell", "San Clemente del Tuyú", "Necochea", "Miramar",
+  "Tandil", "Bahía Blanca",
+];
 const RADIO_CERCA_KM = 15;
 const CLAVE_STORAGE = "fiestas-ba:lista";
 const GRADIENTES_DEFECTO = [
@@ -499,6 +535,12 @@ function CercaView({ fiestas, userPos, permiso, error, onPedirUbicacion, onVolve
 }
 
 function DetalleFiesta({ fiesta, onVolver }) {
+  const todasLasFotos = [fiesta.flyer, ...(fiesta.fotosExtra || [])].filter(
+    Boolean
+  );
+  const [fotoActiva, setFotoActiva] = useState(0);
+  const fotoActual = todasLasFotos[fotoActiva] || todasLasFotos[0];
+
   return (
     <div className="min-h-screen w-full bg-[#FAF9F6] text-[#1C1A26]">
       <style>{FONT_STYLES}</style>
@@ -536,13 +578,13 @@ function DetalleFiesta({ fiesta, onVolver }) {
 
         <div className="mb-6">
           <p className="font-mono text-[10px] text-[#A8A2B8] uppercase tracking-widest mb-3">
-            Flyer
+            {todasLasFotos.length > 1 ? "Fotos" : "Flyer"}
           </p>
-          {fiesta.flyer ? (
+          {fotoActual ? (
             <img
-              src={fiesta.flyer}
-              alt={`Flyer de ${fiesta.nombre}`}
-              className="w-full rounded-2xl border border-[#E8E4DA] object-cover"
+              src={fotoActual}
+              alt={`Foto de ${fiesta.nombre}`}
+              className="w-full aspect-[4/5] rounded-2xl border border-[#E8E4DA] object-cover"
             />
           ) : (
             <div
@@ -552,6 +594,30 @@ function DetalleFiesta({ fiesta, onVolver }) {
               <span className="font-mono text-xs bg-white px-3 py-1.5 rounded-full text-[#1C1A26]">
                 Sin flyer cargado
               </span>
+            </div>
+          )}
+
+          {todasLasFotos.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto mt-2 pb-1 -mx-1 px-1">
+              {todasLasFotos.map((foto, i) => (
+                <button
+                  key={i}
+                  onClick={() => setFotoActiva(i)}
+                  className="shrink-0 w-16 h-16 rounded-lg overflow-hidden"
+                  style={{
+                    border:
+                      i === fotoActiva
+                        ? "2px solid #FF6B4A"
+                        : "2px solid #E8E4DA",
+                  }}
+                >
+                  <img
+                    src={foto}
+                    alt={`Miniatura ${i + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -636,6 +702,7 @@ function DetalleFiesta({ fiesta, onVolver }) {
 const CAMPOS_VACIOS = {
   nombre: "",
   tematica: "",
+  region: "Zona Norte",
   zona: "",
   barrio: "",
   precio: "",
@@ -650,6 +717,7 @@ const CAMPOS_VACIOS = {
   telefonos: "",
   link: "",
   flyer: "",
+  fotosExtra: [],
   lat: "",
   lng: "",
 };
@@ -658,6 +726,7 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
   const [valores, setValores] = useState(inicial || CAMPOS_VACIOS);
   const [subiendo, setSubiendo] = useState(false);
   const [errorImagen, setErrorImagen] = useState(null);
+  const [subiendoExtra, setSubiendoExtra] = useState(false);
 
   const set = (campo) => (e) =>
     setValores((v) => ({ ...v, [campo]: e.target.value }));
@@ -676,6 +745,29 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
     } finally {
       setSubiendo(false);
     }
+  };
+
+  const handleArchivosExtra = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (files.length === 0) return;
+    setErrorImagen(null);
+    setSubiendoExtra(true);
+    try {
+      const nuevas = await Promise.all(files.map((f) => redimensionarImagen(f)));
+      setValores((v) => ({ ...v, fotosExtra: [...v.fotosExtra, ...nuevas] }));
+    } catch (err) {
+      setErrorImagen("No se pudieron cargar algunas fotos, probá de nuevo.");
+    } finally {
+      setSubiendoExtra(false);
+    }
+  };
+
+  const quitarFotoExtra = (i) => {
+    setValores((v) => ({
+      ...v,
+      fotosExtra: v.fotosExtra.filter((_, idx) => idx !== i),
+    }));
   };
 
   const campoTexto = (campo, label, placeholder, tipo = "text") => (
@@ -706,7 +798,23 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
     <form onSubmit={handleSubmit} className="pb-4">
       {campoTexto("nombre", "Nombre de la fiesta", "Ej: Neón Sur")}
       {campoTexto("tematica", "Temática", "Ej: Electrónica, Under, Egresados...")}
-      {campoTexto("zona", "Zona (barrio agrupado)", "Ej: Palermo")}
+
+      <div className="mb-3">
+        <label className="font-mono text-[10px] text-[#A8A2B8] uppercase tracking-widest block mb-1">
+          Región
+        </label>
+        <select
+          value={valores.region}
+          onChange={set("region")}
+          className="font-body w-full bg-white border border-[#E8E4DA] rounded-xl py-2 px-3 text-sm text-[#1C1A26] focus:outline-none focus:ring-2 focus:ring-[#8B7FD9]"
+        >
+          {REGIONES.map((r) => (
+            <option key={r}>{r}</option>
+          ))}
+        </select>
+      </div>
+
+      {campoTexto("zona", "Localidad / barrio", "Ej: Palermo")}
       {campoTexto("barrio", "Barrio / dirección aprox.", "Ej: Palermo Soho")}
       {campoTexto("precio", "Precio", "Ej: 8000", "number")}
       {campoTexto("fechaISO", "Fecha", "", "date")}
@@ -828,6 +936,65 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
         )}
       </div>
 
+      <div className="mb-3">
+        <label className="font-mono text-[10px] text-[#A8A2B8] uppercase tracking-widest block mb-1">
+          Fotos adicionales (opcional)
+        </label>
+        <p className="font-body text-[10px] text-[#A8A2B8] mb-2 leading-relaxed">
+          Se muestran junto al flyer, en la ficha de la fiesta.
+        </p>
+
+        {valores.fotosExtra.length > 0 && (
+          <div className="flex gap-2 flex-wrap mb-2">
+            {valores.fotosExtra.map((foto, i) => (
+              <div key={i} className="relative w-16 h-16">
+                <img
+                  src={foto}
+                  alt={`Foto extra ${i + 1}`}
+                  className="w-full h-full object-cover rounded-lg"
+                />
+                <button
+                  type="button"
+                  onClick={() => quitarFotoExtra(i)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center bg-[#FF6B4A] rounded-full"
+                >
+                  <X className="w-3 h-3 text-white" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <label
+          htmlFor="input-fotos-extra"
+          className="flex items-center justify-center gap-2 border-2 border-dashed border-[#E8E4DA] rounded-xl py-3 cursor-pointer hover:border-[#A8A2B8] transition-colors"
+        >
+          {subiendoExtra ? (
+            <>
+              <Loader2 className="w-4 h-4 text-[#8B7FD9] animate-spin" />
+              <span className="font-body text-xs text-[#6B6580]">
+                Procesando fotos...
+              </span>
+            </>
+          ) : (
+            <>
+              <Upload className="w-4 h-4 text-[#8B7FD9]" />
+              <span className="font-body text-xs text-[#6B6580]">
+                Agregar más fotos
+              </span>
+            </>
+          )}
+        </label>
+        <input
+          id="input-fotos-extra"
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleArchivosExtra}
+          className="hidden"
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-3 mb-1">
         {campoTexto("lat", "Latitud (opcional)", "Ej: -34.5885", "number")}
         {campoTexto("lng", "Longitud (opcional)", "Ej: -58.4306", "number")}
@@ -871,6 +1038,7 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
   const valoresDesdeForm = (v) => ({
     nombre: v.nombre.trim(),
     tematica: v.tematica.trim() || "General",
+    region: v.region,
     zona: v.zona.trim(),
     barrio: v.barrio.trim() || v.zona.trim(),
     precio: Number(v.precio) || 0,
@@ -888,6 +1056,7 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
       .filter(Boolean),
     link: v.link.trim() || null,
     flyer: v.flyer.trim() || null,
+    fotosExtra: v.fotosExtra,
     lat: v.lat !== "" ? Number(v.lat) : null,
     lng: v.lng !== "" ? Number(v.lng) : null,
   });
@@ -1034,6 +1203,7 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
             inicial={{
               nombre: editando.nombre || "",
               tematica: editando.tematica || "",
+              region: editando.region || "Zona Norte",
               zona: editando.zona || "",
               barrio: editando.barrio || "",
               precio: String(editando.precio ?? ""),
@@ -1048,6 +1218,7 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
               telefonos: (editando.telefonos || []).join(", "),
               link: editando.link || "",
               flyer: editando.flyer || "",
+              fotosExtra: editando.fotosExtra || [],
               lat: editando.lat != null ? String(editando.lat) : "",
               lng: editando.lng != null ? String(editando.lng) : "",
             }}
@@ -1064,11 +1235,12 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
 }
 
 export default function FiestasBA() {
-  const [zona, setZona] = useState("Todas");
+  const [filtroRegion, setFiltroRegion] = useState("Todas");
+  const [localidadElegida, setLocalidadElegida] = useState("");
   const [tematica, setTematica] = useState("Todas");
   const [tipo, setTipo] = useState("Todos");
   const [ambiente, setAmbiente] = useState("Todos");
-  const [precioMax, setPrecioMax] = useState(40000);
+  const [precioMax, setPrecioMax] = useState(100000);
   const [edadMax, setEdadMax] = useState(99);
   const [busqueda, setBusqueda] = useState("");
   const [filtroFecha, setFiltroFecha] = useState("todas");
@@ -1114,8 +1286,11 @@ export default function FiestasBA() {
     }
   };
 
-  const ZONAS = useMemo(
-    () => ["Todas", ...new Set(fiestas.map((f) => f.zona))],
+  const LOCALIDADES = useMemo(
+    () =>
+      [...new Set([...BARRIOS_BA, ...fiestas.map((f) => f.zona)])].sort(
+        (a, b) => a.localeCompare(b, "es")
+      ),
     [fiestas]
   );
   const TEMATICAS = useMemo(
@@ -1153,7 +1328,11 @@ export default function FiestasBA() {
 
   const filtradas = useMemo(() => {
     return fiestas.filter((f) => {
-      if (zona !== "Todas" && f.zona !== zona) return false;
+      if (filtroRegion === "localidad") {
+        if (localidadElegida && f.zona !== localidadElegida) return false;
+      } else if (filtroRegion !== "Todas" && f.region !== filtroRegion) {
+        return false;
+      }
       if (tematica !== "Todas" && f.tematica !== tematica) return false;
       if (tipo !== "Todos" && f.tipo !== tipo) return false;
       if (ambiente !== "Todos" && f.ambiente !== ambiente) return false;
@@ -1179,7 +1358,8 @@ export default function FiestasBA() {
       return true;
     });
   }, [
-    zona,
+    filtroRegion,
+    localidadElegida,
     tematica,
     tipo,
     ambiente,
@@ -1191,11 +1371,11 @@ export default function FiestasBA() {
   ]);
 
   const hayFiltrosSecundarios =
-    zona !== "Todas" ||
+    filtroRegion !== "Todas" ||
     tematica !== "Todas" ||
     tipo !== "Todos" ||
     ambiente !== "Todos" ||
-    precioMax !== 40000 ||
+    precioMax !== 100000 ||
     edadMax !== 99;
 
   if (cargandoDatos) {
@@ -1359,22 +1539,69 @@ export default function FiestasBA() {
 
         {mostrarMasFiltros && (
           <div className="mt-3">
-            <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1">
-              {ZONAS.map((z) => (
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-2 -mx-1 px-1">
+              <button
+                onClick={() => {
+                  setFiltroRegion("Todas");
+                  setLocalidadElegida("");
+                }}
+                className={`font-mono text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${
+                  filtroRegion === "Todas"
+                    ? "bg-[#6B6580] border-[#6B6580] text-white font-semibold"
+                    : "bg-white border-[#E8E4DA] text-[#6B6580] hover:border-[#A8A2B8]"
+                }`}
+              >
+                <MapPin className="inline w-3 h-3 mr-1 -mt-0.5" />
+                Todas
+              </button>
+              {REGIONES.map((r) => (
                 <button
-                  key={z}
-                  onClick={() => setZona(zona === z && z !== "Todas" ? "Todas" : z)}
+                  key={r}
+                  onClick={() => {
+                    setFiltroRegion(
+                      filtroRegion === r ? "Todas" : r
+                    );
+                    setLocalidadElegida("");
+                  }}
                   className={`font-mono text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${
-                    zona === z
+                    filtroRegion === r
                       ? "bg-[#6B6580] border-[#6B6580] text-white font-semibold"
                       : "bg-white border-[#E8E4DA] text-[#6B6580] hover:border-[#A8A2B8]"
                   }`}
                 >
-                  <MapPin className="inline w-3 h-3 mr-1 -mt-0.5" />
-                  {z}
+                  {r}
                 </button>
               ))}
+              <button
+                onClick={() =>
+                  setFiltroRegion(
+                    filtroRegion === "localidad" ? "Todas" : "localidad"
+                  )
+                }
+                className={`font-mono text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${
+                  filtroRegion === "localidad"
+                    ? "bg-[#6B6580] border-[#6B6580] text-white font-semibold"
+                    : "bg-white border-[#E8E4DA] text-[#6B6580] hover:border-[#A8A2B8]"
+                }`}
+              >
+                Elegir localidad
+              </button>
             </div>
+
+            {filtroRegion === "localidad" && (
+              <select
+                value={localidadElegida}
+                onChange={(e) => setLocalidadElegida(e.target.value)}
+                className="font-body w-full bg-white border border-[#E8E4DA] rounded-xl py-2 px-3 text-sm text-[#1C1A26] mb-3 focus:outline-none focus:ring-2 focus:ring-[#8B7FD9]"
+              >
+                <option value="">Todas las localidades</option>
+                {LOCALIDADES.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            )}
 
             <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1">
               {TEMATICAS.map((t) => (
@@ -1436,7 +1663,7 @@ export default function FiestasBA() {
               <input
                 type="range"
                 min="3000"
-                max="40000"
+                max="100000"
                 step="500"
                 value={precioMax}
                 onChange={(e) => setPrecioMax(Number(e.target.value))}
@@ -1469,22 +1696,23 @@ export default function FiestasBA() {
             {filtradas.length} fiesta{filtradas.length !== 1 ? "s" : ""} encontrada
             {filtradas.length !== 1 ? "s" : ""}
           </p>
-          {(zona !== "Todas" ||
+          {(filtroRegion !== "Todas" ||
             tematica !== "Todas" ||
             tipo !== "Todos" ||
             ambiente !== "Todos" ||
             busqueda ||
-            precioMax !== 40000 ||
+            precioMax !== 100000 ||
             edadMax !== 99 ||
             filtroFecha !== "todas") && (
             <button
               onClick={() => {
-                setZona("Todas");
+                setFiltroRegion("Todas");
+                setLocalidadElegida("");
                 setTematica("Todas");
                 setTipo("Todos");
                 setAmbiente("Todos");
                 setBusqueda("");
-                setPrecioMax(40000);
+                setPrecioMax(100000);
                 setEdadMax(99);
                 setFiltroFecha("todas");
                 setFechaPersonalizada("");
