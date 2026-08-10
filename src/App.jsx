@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import Papa from "papaparse";
 import {
   MapPin,
   Search,
@@ -21,6 +22,9 @@ import {
   Save,
   CheckCircle2,
   Upload,
+  FileUp,
+  Download,
+  AlertTriangle,
 } from "lucide-react";
 
 const DIAS_CORTOS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -42,165 +46,7 @@ function formatFechaCorta(fechaISO) {
   return `${DIAS_CORTOS[fecha.getDay()]} ${d} ${MESES_CORTOS[m - 1]}`;
 }
 
-const FIESTAS_SEED = [
-  {
-    id: 1,
-    region: "Zona Norte",
-    edadMinima: 18,
-    tipo: "Boliche",
-    ambiente: "Aire libre",
-    lat: -34.5885,
-    lng: -58.4306,
-    flyer: demoFlyer("FF6B4A", "Neón Sur", "Sáb 15 Ago"),
-    nombre: "Neón Sur",
-    tematica: "Electrónica/Techno",
-    zona: "Palermo",
-    barrio: "Palermo Soho",
-    precio: 8000,
-    fechaISO: "2026-08-15",
-    hora: "23:30",
-    genero: "Techno / House",
-    vibe: "Rooftop, luces láser, línea hasta las 6am",
-    grad: "linear-gradient(135deg, #FF6B4A 0%, #8B7FD9 100%)",
-    organizador: "Facu (Neón Sur)",
-    telefonos: ["+54 9 11 4455-6677"],
-    link: "https://instagram.com/neonsur",
-  },
-  {
-    id: 2,
-    region: "Zona Sur",
-    edadMinima: 18,
-    tipo: "Boliche",
-    ambiente: "Cerrado",
-    lat: -34.6212,
-    lng: -58.3724,
-    flyer: null,
-    nombre: "Retro Fiebre",
-    tematica: "80s/90s/Retro",
-    zona: "San Telmo",
-    barrio: "San Telmo",
-    precio: 5000,
-    fechaISO: isoDeHoy(1),
-    hora: "22:00",
-    genero: "Synth-pop / Disco",
-    vibe: "Dress code obligatorio, sintetizadores y neón de verdad",
-    grad: "linear-gradient(135deg, #8B7FD9 0%, #FF6B4A 60%)",
-    organizador: "Sole (Retro Fiebre)",
-    telefonos: ["+54 9 11 2233-8899"],
-    link: "https://instagram.com/retrofiebre",
-  },
-  {
-    id: 3,
-    region: "Zona Sur",
-    edadMinima: 21,
-    tipo: "Fiesta espontánea",
-    ambiente: "Cerrado",
-    lat: -34.6345,
-    lng: -58.3631,
-    flyer: null,
-    nombre: "Under del Puerto",
-    tematica: "Electrónica/Techno",
-    zona: "La Boca",
-    barrio: "La Boca",
-    precio: 4000,
-    fechaISO: "2026-08-15",
-    hora: "00:00",
-    genero: "Techno crudo",
-    vibe: "Galpón reciclado, cupo limitado, sin flash",
-    grad: "linear-gradient(135deg, #2A263D 0%, #6B6580 100%)",
-    organizador: "Nano (Under del Puerto)",
-    telefonos: ["+54 9 11 5566-1122"],
-    link: "https://instagram.com/underdelpuerto",
-  },
-  {
-    id: 4,
-    region: "Zona Oeste",
-    edadMinima: 16,
-    tipo: "Boliche",
-    ambiente: "Aire libre",
-    flyer: null,
-    nombre: "Terraza Cumbia",
-    tematica: "Cumbia/Cuarteto",
-    zona: "Villa Crespo",
-    barrio: "Villa Crespo",
-    precio: 3500,
-    fechaISO: "2026-08-14",
-    hora: "21:00",
-    genero: "Cumbia villera / Digital",
-    vibe: "Terraza al aire libre, food trucks, familia bienvenida hasta medianoche",
-    grad: "linear-gradient(135deg, #FF6B4A 0%, #F2B78C 120%)",
-    organizador: "Vale (Terraza Cumbia)",
-    telefonos: ["+54 9 11 7788-3344"],
-    link: "https://instagram.com/terrazacumbia",
-  },
-  {
-    id: 5,
-    region: "Zona Oeste",
-    edadMinima: 18,
-    tipo: "Fiesta espontánea",
-    ambiente: "Aire libre",
-    lat: -34.5852,
-    lng: -58.4531,
-    flyer: null,
-    nombre: "Después de las 6",
-    tematica: "Electrónica/Techno",
-    zona: "Chacarita",
-    barrio: "Chacarita",
-    precio: 6000,
-    fechaISO: "2026-08-16",
-    hora: "06:00",
-    genero: "Melodic techno",
-    vibe: "Arranca al amanecer, patio con sol, cierre 14hs",
-    grad: "linear-gradient(135deg, #8B7FD9 0%, #2A263D 100%)",
-    organizador: "Ema (Después de las 6)",
-    telefonos: ["+54 9 11 9900-5566", "+54 9 11 1122-3344"],
-    link: "https://instagram.com/despuesdelas6",
-  },
-  {
-    id: 6,
-    region: "Zona Oeste",
-    edadMinima: 18,
-    tipo: "Fiesta espontánea",
-    ambiente: "Cerrado",
-    flyer: null,
-    nombre: "Boliche Ficción",
-    tematica: "Rock/Indie",
-    zona: "Almagro",
-    barrio: "Almagro",
-    precio: 4500,
-    fechaISO: isoDeHoy(0),
-    hora: "21:30",
-    genero: "Indie / Post-punk",
-    vibe: "DJ sets entre lecturas en vivo, bar de vermú",
-    grad: "linear-gradient(135deg, #6B6580 0%, #FF6B4A 100%)",
-    organizador: "Cami (Boliche Ficción)",
-    telefonos: ["+54 9 11 3344-7788"],
-    link: "https://instagram.com/bolicheficcion",
-  },
-  {
-    id: 7,
-    region: "Zona Sur",
-    edadMinima: 18,
-    tipo: "Fiesta espontánea",
-    ambiente: "Aire libre",
-    lat: -34.8451,
-    lng: -58.5161,
-    flyer: demoFlyer("6B6580", "Eterna Parish", "Mar 18 Ago"),
-    nombre: "Eterna Parish",
-    tematica: "RKT/Reguetón/Guaracha",
-    zona: "Canning",
-    barrio: "Canning",
-    precio: 25000,
-    fechaISO: "2026-08-18",
-    hora: "01:30",
-    genero: "Guaracha / Reggaetón / RKT",
-    vibe: "Carpa, luces, DJs invitados",
-    grad: "linear-gradient(135deg, #FF6B4A 0%, #6B6580 100%)",
-    organizador: "Organización Eterna Parish",
-    telefonos: ["+54 9 11 6677-2233", "+54 9 11 8899-0011"],
-    link: "https://instagram.com/parish2k26",
-  },
-];
+const FIESTAS_SEED = [];
 
 const TIPOS = ["Todos", "Boliche", "Fiesta espontánea"];
 const AMBIENTES = ["Todos", "Aire libre", "Cerrado"];
@@ -209,7 +55,7 @@ const GENEROS_MUSICALES = [
   "80s/90s/Retro",
   "Cumbia/Cuarteto",
   "Electrónica/Techno",
-  "Rock/Indie",
+  "Rock",
 ];
 const REGIONES = ["Zona Norte", "Zona Sur", "Zona Oeste"];
 const BARRIOS_BA = [
@@ -1045,8 +891,252 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
   );
 }
 
+const COLUMNAS_CSV = [
+  "nombre", "tematica", "region", "zona", "barrio", "precio", "fecha",
+  "hora", "genero", "vibe", "tipo", "ambiente", "edadMinima",
+  "organizador", "telefonos", "link", "flyer_url", "fotos_urls", "lat", "lng",
+];
+
+function descargarPlantillaCSV() {
+  const ejemplo = [
+    "Neón Sur", "Electrónica/Techno", "Zona Norte", "Palermo",
+    "Palermo Soho", "8000", "2026-08-15", "23:30", "Techno / House",
+    "Rooftop, luces láser, línea hasta las 6am", "Boliche", "Aire libre",
+    "18", "Facu (Neón Sur)", "+54 9 11 4455-6677", "https://instagram.com/neonsur",
+    "https://i.postimg.cc/xxxxxxx/flyer.jpg",
+    "https://i.postimg.cc/yyyyyyy/foto2.jpg;https://i.postimg.cc/zzzzzzz/foto3.jpg",
+    "-34.5885", "-58.4306",
+  ];
+  const csv =
+    COLUMNAS_CSV.join(",") +
+    "\n" +
+    ejemplo.map((v) => `"${v.replace(/"/g, '""')}"`).join(",") +
+    "\n";
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "plantilla-fiestas.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function filaAFiesta(fila, indice) {
+  const nombre = (fila.nombre || "").trim();
+  const zona = (fila.zona || "").trim();
+  const fecha = (fila.fecha || "").trim();
+  if (!nombre || !zona || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return null;
+
+  const tematica = GENEROS_MUSICALES.includes((fila.tematica || "").trim())
+    ? fila.tematica.trim()
+    : GENEROS_MUSICALES[0];
+  const region = REGIONES.includes((fila.region || "").trim())
+    ? fila.region.trim()
+    : REGIONES[0];
+  const tipo = ["Boliche", "Fiesta espontánea"].includes(
+    (fila.tipo || "").trim()
+  )
+    ? fila.tipo.trim()
+    : "Boliche";
+  const ambiente = ["Aire libre", "Cerrado"].includes(
+    (fila.ambiente || "").trim()
+  )
+    ? fila.ambiente.trim()
+    : "Aire libre";
+
+  return {
+    id: Date.now() + indice,
+    grad: GRADIENTES_DEFECTO[indice % GRADIENTES_DEFECTO.length],
+    nombre,
+    tematica,
+    region,
+    zona,
+    barrio: (fila.barrio || "").trim() || zona,
+    precio: Number(fila.precio) || 0,
+    fechaISO: fecha,
+    hora: (fila.hora || "").trim(),
+    genero: (fila.genero || "").trim(),
+    vibe: (fila.vibe || "").trim(),
+    tipo,
+    ambiente,
+    edadMinima: Number(fila.edadMinima) || 18,
+    organizador: (fila.organizador || "").trim(),
+    telefonos: (fila.telefonos || "")
+      .split(";")
+      .map((t) => t.trim())
+      .filter(Boolean),
+    link: (fila.link || "").trim() || null,
+    flyer: (fila.flyer_url || "").trim() || null,
+    fotosExtra: (fila.fotos_urls || "")
+      .split(";")
+      .map((u) => u.trim())
+      .filter(Boolean),
+    lat: fila.lat ? Number(fila.lat) : null,
+    lng: fila.lng ? Number(fila.lng) : null,
+  };
+}
+
+function ImportarFiestas({ fiestas, onImportar, onCancelar }) {
+  const [textoCSV, setTextoCSV] = useState("");
+  const [filas, setFilas] = useState(null);
+  const [filasInvalidas, setFilasInvalidas] = useState(0);
+  const [error, setError] = useState(null);
+
+  const procesarCSV = (texto) => {
+    setError(null);
+    Papa.parse(texto, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (res) => {
+        const parseadas = res.data.map((fila, i) => filaAFiesta(fila, i));
+        const validas = parseadas.filter(Boolean);
+        setFilasInvalidas(parseadas.length - validas.length);
+        setFilas(validas);
+      },
+      error: () => setError("No se pudo leer el archivo. Revisá el formato."),
+    });
+  };
+
+  const handleArchivoCSV = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const lector = new FileReader();
+    lector.onload = (ev) => {
+      setTextoCSV(ev.target.result);
+      procesarCSV(ev.target.result);
+    };
+    lector.readAsText(file, "utf-8");
+  };
+
+  const confirmarImportacion = () => {
+    if (!filas || filas.length === 0) return;
+    onImportar([...fiestas, ...filas]);
+  };
+
+  return (
+    <div className="pb-4">
+      <div className="flex items-start gap-3 bg-[#EAE6F7] border border-[#D9D2F0] rounded-2xl p-4 mb-5">
+        <FileUp className="w-4 h-4 text-[#8B7FD9] shrink-0 mt-0.5" />
+        <div>
+          <p className="font-body text-xs text-[#1C1A26] font-medium mb-1">
+            Cargá varias fiestas a la vez desde un CSV
+          </p>
+          <p className="font-body text-xs text-[#6B6580] leading-relaxed">
+            Descargá la plantilla, completala en Excel/Sheets (una fila por
+            fiesta), exportala como CSV, y subila o pegá su contenido acá
+            abajo. Para las fotos, completá las columnas{" "}
+            <span className="font-mono">flyer_url</span> y{" "}
+            <span className="font-mono">fotos_urls</span> con links directos
+            a las imágenes (subidas a postimages.org, imgbb.com, o
+            similar) — no hace falta subir los archivos acá.
+          </p>
+        </div>
+      </div>
+
+      <button
+        onClick={descargarPlantillaCSV}
+        className="flex items-center gap-2 font-body text-xs font-semibold bg-white border border-[#E8E4DA] text-[#1C1A26] px-4 py-2.5 rounded-full mb-5 hover:border-[#A8A2B8] transition-colors"
+      >
+        <Download className="w-3.5 h-3.5" />
+        Descargar plantilla CSV
+      </button>
+
+      <label
+        htmlFor="input-csv"
+        className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[#E8E4DA] rounded-xl py-6 cursor-pointer hover:border-[#A8A2B8] transition-colors mb-4"
+      >
+        <Upload className="w-5 h-5 text-[#8B7FD9]" />
+        <span className="font-body text-xs text-[#6B6580]">
+          Tocá para subir un archivo .csv
+        </span>
+      </label>
+      <input
+        id="input-csv"
+        type="file"
+        accept=".csv,text/csv"
+        onChange={handleArchivoCSV}
+        className="hidden"
+      />
+
+      <p className="font-mono text-[10px] text-[#A8A2B8] uppercase tracking-widest mb-1">
+        O pegá el contenido del CSV acá
+      </p>
+      <textarea
+        value={textoCSV}
+        onChange={(e) => {
+          setTextoCSV(e.target.value);
+          if (e.target.value.trim()) procesarCSV(e.target.value);
+          else setFilas(null);
+        }}
+        rows={5}
+        placeholder="nombre,tematica,region,zona,barrio,precio,fecha,hora,..."
+        className="font-mono w-full bg-white border border-[#E8E4DA] rounded-xl py-2 px-3 text-xs text-[#1C1A26] placeholder-[#A8A2B8] focus:outline-none focus:ring-2 focus:ring-[#8B7FD9] mb-4"
+      />
+
+      {error && (
+        <p className="font-body text-xs text-[#FF6B4A] mb-3">{error}</p>
+      )}
+
+      {filas !== null && (
+        <div className="bg-white border border-[#E8E4DA] rounded-2xl p-4 mb-4">
+          <p className="font-body text-sm text-[#1C1A26] font-medium mb-2">
+            {filas.length} fiesta{filas.length !== 1 ? "s" : ""} lista
+            {filas.length !== 1 ? "s" : ""} para importar
+          </p>
+
+          {filasInvalidas > 0 && (
+            <div className="flex items-start gap-2 bg-[#FFF6E0] border border-[#F0DFA8] rounded-xl p-3 mb-3">
+              <AlertTriangle className="w-3.5 h-3.5 text-[#B8860B] shrink-0 mt-0.5" />
+              <p className="font-body text-xs text-[#6B5A1E] leading-relaxed">
+                {filasInvalidas} fila{filasInvalidas !== 1 ? "s" : ""} se
+                {filasInvalidas !== 1 ? " saltearon" : " salteó"} por
+                faltarle nombre, zona o una fecha válida (AAAA-MM-DD).
+              </p>
+            </div>
+          )}
+
+          {filas.length > 0 && (
+            <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+              {filas.map((f, i) => (
+                <p
+                  key={i}
+                  className="font-mono text-[10px] text-[#6B6580] truncate"
+                >
+                  {f.nombre} — {f.zona} · {formatFechaCorta(f.fechaISO)}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={onCancelar}
+          className="flex-1 font-body text-sm font-semibold bg-white border border-[#E8E4DA] text-[#1C1A26] py-3 rounded-full hover:border-[#A8A2B8] transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={confirmarImportacion}
+          disabled={!filas || filas.length === 0}
+          className="flex-1 flex items-center justify-center gap-2 font-body text-sm font-semibold bg-[#1C1A26] text-white py-3 rounded-full hover:opacity-90 transition-opacity disabled:opacity-40"
+        >
+          <Upload className="w-4 h-4" />
+          Importar {filas ? filas.length : ""}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AdminView({ fiestas, onGuardarLista, onVolver }) {
-  const [modo, setModo] = useState("lista"); // lista | nueva | editar
+  const [modo, setModo] = useState("lista"); // lista | nueva | editar | importar
   const [editando, setEditando] = useState(null);
   const [guardado, setGuardado] = useState(false);
 
@@ -1137,6 +1227,8 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
             ? "TUS FIESTAS"
             : modo === "nueva"
             ? "NUEVA FIESTA"
+            : modo === "importar"
+            ? "IMPORTAR VARIAS"
             : "EDITAR FIESTA"}
         </h1>
       </div>
@@ -1153,13 +1245,22 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
 
         {modo === "lista" && (
           <>
-            <button
-              onClick={() => setModo("nueva")}
-              className="w-full flex items-center justify-center gap-2 bg-[#1C1A26] text-white font-body text-sm font-semibold py-3 rounded-full mb-6 hover:opacity-90 transition-opacity"
-            >
-              <Plus className="w-4 h-4" />
-              Nueva fiesta
-            </button>
+            <div className="flex gap-3 mb-6">
+              <button
+                onClick={() => setModo("nueva")}
+                className="flex-1 flex items-center justify-center gap-2 bg-[#1C1A26] text-white font-body text-sm font-semibold py-3 rounded-full hover:opacity-90 transition-opacity"
+              >
+                <Plus className="w-4 h-4" />
+                Nueva
+              </button>
+              <button
+                onClick={() => setModo("importar")}
+                className="flex-1 flex items-center justify-center gap-2 bg-white border border-[#E8E4DA] text-[#1C1A26] font-body text-sm font-semibold py-3 rounded-full hover:border-[#A8A2B8] transition-colors"
+              >
+                <FileUp className="w-4 h-4" />
+                Importar varias
+              </button>
+            </div>
 
             {fiestas.length === 0 && (
               <p className="font-body text-sm text-[#A8A2B8] text-center py-10">
@@ -1214,6 +1315,18 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
         {modo === "nueva" && (
           <FormularioFiesta
             onGuardar={crearFiesta}
+            onCancelar={() => setModo("lista")}
+          />
+        )}
+
+        {modo === "importar" && (
+          <ImportarFiestas
+            fiestas={fiestas}
+            onImportar={(nuevaLista) => {
+              onGuardarLista(nuevaLista);
+              setModo("lista");
+              avisarGuardado();
+            }}
             onCancelar={() => setModo("lista")}
           />
         )}
