@@ -1637,6 +1637,7 @@ export default function FiestasBA() {
     busqueda,
     filtroFecha,
     fechaPersonalizada,
+        fiestas,
   ]);
 
   const hayFiltrosSecundarios =
