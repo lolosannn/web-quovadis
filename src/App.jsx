@@ -53,7 +53,7 @@ const FIESTAS_SEED = [
     lng: -58.4306,
     flyer: demoFlyer("FF6B4A", "Neón Sur", "Sáb 15 Ago"),
     nombre: "Neón Sur",
-    tematica: "Electrónica",
+    tematica: "Electrónica/Techno",
     zona: "Palermo",
     barrio: "Palermo Soho",
     precio: 8000,
@@ -76,7 +76,7 @@ const FIESTAS_SEED = [
     lng: -58.3724,
     flyer: null,
     nombre: "Retro Fiebre",
-    tematica: "Temática 80s",
+    tematica: "80s/90s/Retro",
     zona: "San Telmo",
     barrio: "San Telmo",
     precio: 5000,
@@ -99,7 +99,7 @@ const FIESTAS_SEED = [
     lng: -58.3631,
     flyer: null,
     nombre: "Under del Puerto",
-    tematica: "Under / Experimental",
+    tematica: "Electrónica/Techno",
     zona: "La Boca",
     barrio: "La Boca",
     precio: 4000,
@@ -120,7 +120,7 @@ const FIESTAS_SEED = [
     ambiente: "Aire libre",
     flyer: null,
     nombre: "Terraza Cumbia",
-    tematica: "Cumbia / Folklore urbano",
+    tematica: "Cumbia/Cuarteto",
     zona: "Villa Crespo",
     barrio: "Villa Crespo",
     precio: 3500,
@@ -143,7 +143,7 @@ const FIESTAS_SEED = [
     lng: -58.4531,
     flyer: null,
     nombre: "Después de las 6",
-    tematica: "After / Día completo",
+    tematica: "Electrónica/Techno",
     zona: "Chacarita",
     barrio: "Chacarita",
     precio: 6000,
@@ -164,7 +164,7 @@ const FIESTAS_SEED = [
     ambiente: "Cerrado",
     flyer: null,
     nombre: "Boliche Ficción",
-    tematica: "Fiesta literaria / rara",
+    tematica: "Rock/Indie",
     zona: "Almagro",
     barrio: "Almagro",
     precio: 4500,
@@ -187,7 +187,7 @@ const FIESTAS_SEED = [
     lng: -58.5161,
     flyer: demoFlyer("6B6580", "Eterna Parish", "Mar 18 Ago"),
     nombre: "Eterna Parish",
-    tematica: "Electrónica",
+    tematica: "RKT/Reguetón/Guaracha",
     zona: "Canning",
     barrio: "Canning",
     precio: 25000,
@@ -204,6 +204,13 @@ const FIESTAS_SEED = [
 
 const TIPOS = ["Todos", "Boliche", "Fiesta espontánea"];
 const AMBIENTES = ["Todos", "Aire libre", "Cerrado"];
+const GENEROS_MUSICALES = [
+  "RKT/Reguetón/Guaracha",
+  "80s/90s/Retro",
+  "Cumbia/Cuarteto",
+  "Electrónica/Techno",
+  "Rock/Indie",
+];
 const REGIONES = ["Zona Norte", "Zona Sur", "Zona Oeste"];
 const BARRIOS_BA = [
   // CABA
@@ -701,7 +708,7 @@ function DetalleFiesta({ fiesta, onVolver }) {
 
 const CAMPOS_VACIOS = {
   nombre: "",
-  tematica: "",
+  tematica: GENEROS_MUSICALES[0],
   region: "Zona Norte",
   zona: "",
   barrio: "",
@@ -797,7 +804,20 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
   return (
     <form onSubmit={handleSubmit} className="pb-4">
       {campoTexto("nombre", "Nombre de la fiesta", "Ej: Neón Sur")}
-      {campoTexto("tematica", "Temática", "Ej: Electrónica, Under, Egresados...")}
+      <div className="mb-3">
+        <label className="font-mono text-[10px] text-[#A8A2B8] uppercase tracking-widest block mb-1">
+          Género musical (categoría)
+        </label>
+        <select
+          value={valores.tematica}
+          onChange={set("tematica")}
+          className="font-body w-full bg-white border border-[#E8E4DA] rounded-xl py-2 px-3 text-sm text-[#1C1A26] focus:outline-none focus:ring-2 focus:ring-[#8B7FD9]"
+        >
+          {GENEROS_MUSICALES.map((g) => (
+            <option key={g}>{g}</option>
+          ))}
+        </select>
+      </div>
 
       <div className="mb-3">
         <label className="font-mono text-[10px] text-[#A8A2B8] uppercase tracking-widest block mb-1">
@@ -1037,7 +1057,7 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
 
   const valoresDesdeForm = (v) => ({
     nombre: v.nombre.trim(),
-    tematica: v.tematica.trim() || "General",
+    tematica: v.tematica,
     region: v.region,
     zona: v.zona.trim(),
     barrio: v.barrio.trim() || v.zona.trim(),
@@ -1202,7 +1222,7 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
           <FormularioFiesta
             inicial={{
               nombre: editando.nombre || "",
-              tematica: editando.tematica || "",
+              tematica: editando.tematica || GENEROS_MUSICALES[0],
               region: editando.region || "Zona Norte",
               zona: editando.zona || "",
               barrio: editando.barrio || "",
@@ -1293,10 +1313,7 @@ export default function FiestasBA() {
       ),
     [fiestas]
   );
-  const TEMATICAS = useMemo(
-    () => ["Todas", ...new Set(fiestas.map((f) => f.tematica))],
-    [fiestas]
-  );
+  const TEMATICAS = ["Todas", ...GENEROS_MUSICALES];
 
   const pedirUbicacion = () => {
     if (!navigator.geolocation) {
