@@ -179,6 +179,22 @@ function redimensionarImagen(file, maxAncho = 800, calidad = 0.8) {
   });
 }
 
+const IMGBB_KEY = "dd798c141bfe7d26ee45fd57a48cf92d";
+
+async function subirImagen(file) {
+  const dataUrl = await redimensionarImagen(file);
+  const base64 = dataUrl.split(",")[1];
+  const formData = new FormData();
+  formData.append("image", base64);
+  const res = await fetch(
+    `https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`,
+    { method: "POST", body: formData }
+  );
+  const datos = await res.json();
+  if (!datos.success) throw new Error("No se pudo subir la imagen");
+  return datos.data.url;
+}
+
 const FONT_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
   .font-display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.04em; }
@@ -615,10 +631,10 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
     setErrorImagen(null);
     setSubiendo(true);
     try {
-      const dataUrl = await redimensionarImagen(file);
-      setValores((v) => ({ ...v, flyer: dataUrl }));
+      const url = await subirImagen(file);
+      setValores((v) => ({ ...v, flyer: url }));
     } catch (err) {
-      setErrorImagen("No se pudo cargar esa imagen, probá con otra.");
+      setErrorImagen("No se pudo subir esa imagen, probá con otra.");
     } finally {
       setSubiendo(false);
     }
@@ -631,10 +647,10 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
     setErrorImagen(null);
     setSubiendoExtra(true);
     try {
-      const nuevas = await Promise.all(files.map((f) => redimensionarImagen(f)));
+      const nuevas = await Promise.all(files.map((f) => subirImagen(f)));
       setValores((v) => ({ ...v, fotosExtra: [...v.fotosExtra, ...nuevas] }));
     } catch (err) {
-      setErrorImagen("No se pudieron cargar algunas fotos, probá de nuevo.");
+      setErrorImagen("No se pudieron subir algunas fotos, probá de nuevo.");
     } finally {
       setSubiendoExtra(false);
     }
@@ -835,7 +851,7 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
               <>
                 <Loader2 className="w-5 h-5 text-[#8B7FD9] animate-spin" />
                 <span className="font-body text-xs text-[#6B6580]">
-                  Procesando imagen...
+                  Subiendo imagen...
                 </span>
               </>
             ) : (
@@ -899,7 +915,7 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
             <>
               <Loader2 className="w-4 h-4 text-[#8B7FD9] animate-spin" />
               <span className="font-body text-xs text-[#6B6580]">
-                Procesando fotos...
+                Subiendo fotos...
               </span>
             </>
           ) : (
