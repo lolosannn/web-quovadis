@@ -23,25 +23,24 @@ import {
   Upload,
 } from "lucide-react";
 
-const storage = typeof window !== "undefined" && window.storage
-  ? window.storage
-  : {
-      async get(key, raw = false) {
-        try {
-          const value = localStorage.getItem(key);
-          return raw ? { value } : value ? JSON.parse(value) : null;
-        } catch (e) {
-          return raw ? { value: null } : null;
-        }
-      },
-      async set(key, value, raw = false) {
-        try {
-          localStorage.setItem(key, raw ? value : JSON.stringify(value));
-        } catch (e) {
-          throw e;
-        }
-      },
-    };
+const DIAS_CORTOS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const MESES_CORTOS = [
+  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+];
+
+function isoDeHoy(offsetDias = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDias);
+  return d.toISOString().slice(0, 10);
+}
+
+function formatFechaCorta(fechaISO) {
+  if (!fechaISO) return "";
+  const [y, m, d] = fechaISO.split("-").map(Number);
+  const fecha = new Date(y, m - 1, d);
+  return `${DIAS_CORTOS[fecha.getDay()]} ${d} ${MESES_CORTOS[m - 1]}`;
+}
 
 const FIESTAS_SEED = [
   {
@@ -57,7 +56,7 @@ const FIESTAS_SEED = [
     zona: "Palermo",
     barrio: "Palermo Soho",
     precio: 8000,
-    fecha: "Sáb 15 Ago",
+    fechaISO: "2026-08-15",
     hora: "23:30",
     genero: "Techno / House",
     vibe: "Rooftop, luces láser, línea hasta las 6am",
@@ -79,7 +78,7 @@ const FIESTAS_SEED = [
     zona: "San Telmo",
     barrio: "San Telmo",
     precio: 5000,
-    fecha: "Vie 14 Ago",
+    fechaISO: isoDeHoy(1),
     hora: "22:00",
     genero: "Synth-pop / Disco",
     vibe: "Dress code obligatorio, sintetizadores y neón de verdad",
@@ -101,7 +100,7 @@ const FIESTAS_SEED = [
     zona: "La Boca",
     barrio: "La Boca",
     precio: 4000,
-    fecha: "Sáb 15 Ago",
+    fechaISO: "2026-08-15",
     hora: "00:00",
     genero: "Techno crudo",
     vibe: "Galpón reciclado, cupo limitado, sin flash",
@@ -121,7 +120,7 @@ const FIESTAS_SEED = [
     zona: "Villa Crespo",
     barrio: "Villa Crespo",
     precio: 3500,
-    fecha: "Vie 14 Ago",
+    fechaISO: "2026-08-14",
     hora: "21:00",
     genero: "Cumbia villera / Digital",
     vibe: "Terraza al aire libre, food trucks, familia bienvenida hasta medianoche",
@@ -143,7 +142,7 @@ const FIESTAS_SEED = [
     zona: "Chacarita",
     barrio: "Chacarita",
     precio: 6000,
-    fecha: "Dom 16 Ago",
+    fechaISO: "2026-08-16",
     hora: "06:00",
     genero: "Melodic techno",
     vibe: "Arranca al amanecer, patio con sol, cierre 14hs",
@@ -163,7 +162,7 @@ const FIESTAS_SEED = [
     zona: "Almagro",
     barrio: "Almagro",
     precio: 4500,
-    fecha: "Jue 13 Ago",
+    fechaISO: isoDeHoy(0),
     hora: "21:30",
     genero: "Indie / Post-punk",
     vibe: "DJ sets entre lecturas en vivo, bar de vermú",
@@ -185,7 +184,7 @@ const FIESTAS_SEED = [
     zona: "Canning",
     barrio: "Canning",
     precio: 25000,
-    fecha: "Mar 18 Ago",
+    fechaISO: "2026-08-18",
     hora: "01:30",
     genero: "Guaracha / Reggaetón / RKT",
     vibe: "Carpa, luces, DJs invitados",
@@ -528,7 +527,7 @@ function DetalleFiesta({ fiesta, onVolver }) {
         </h2>
         <div className="flex items-center gap-1.5 text-[#6B6580] text-xs font-body mb-4">
           <MapPin className="w-3.5 h-3.5 text-[#FF6B4A]" />
-          {fiesta.barrio} · {fiesta.fecha} · {fiesta.hora}
+          {fiesta.barrio} · {formatFechaCorta(fiesta.fechaISO)} · {fiesta.hora}
         </div>
 
         <p className="font-body text-sm text-[#6B6580] leading-relaxed mb-6">
@@ -640,7 +639,7 @@ const CAMPOS_VACIOS = {
   zona: "",
   barrio: "",
   precio: "",
-  fecha: "",
+  fechaISO: "",
   hora: "",
   genero: "",
   vibe: "",
@@ -696,7 +695,7 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!valores.nombre || !valores.zona || !valores.fecha) {
+    if (!valores.nombre || !valores.zona || !valores.fechaISO) {
       alert("Completá al menos nombre, zona y fecha.");
       return;
     }
@@ -710,7 +709,7 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
       {campoTexto("zona", "Zona (barrio agrupado)", "Ej: Palermo")}
       {campoTexto("barrio", "Barrio / dirección aprox.", "Ej: Palermo Soho")}
       {campoTexto("precio", "Precio", "Ej: 8000", "number")}
-      {campoTexto("fecha", "Fecha", "Ej: Sáb 15 Ago")}
+      {campoTexto("fechaISO", "Fecha", "", "date")}
       {campoTexto("hora", "Hora", "Ej: 23:30")}
       {campoTexto("genero", "Género musical", "Ej: Techno / House")}
 
@@ -875,7 +874,7 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
     zona: v.zona.trim(),
     barrio: v.barrio.trim() || v.zona.trim(),
     precio: Number(v.precio) || 0,
-    fecha: v.fecha.trim(),
+    fechaISO: v.fechaISO,
     hora: v.hora.trim(),
     genero: v.genero.trim(),
     vibe: v.vibe.trim(),
@@ -1002,7 +1001,7 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
                       {f.nombre}
                     </p>
                     <p className="font-mono text-[10px] text-[#A8A2B8] truncate">
-                      {f.zona} · {f.fecha}
+                      {f.zona} · {formatFechaCorta(f.fechaISO)}
                     </p>
                   </div>
                   <button
@@ -1038,7 +1037,7 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
               zona: editando.zona || "",
               barrio: editando.barrio || "",
               precio: String(editando.precio ?? ""),
-              fecha: editando.fecha || "",
+              fechaISO: editando.fechaISO || "",
               hora: editando.hora || "",
               genero: editando.genero || "",
               vibe: editando.vibe || "",
@@ -1072,6 +1071,10 @@ export default function FiestasBA() {
   const [precioMax, setPrecioMax] = useState(40000);
   const [edadMax, setEdadMax] = useState(99);
   const [busqueda, setBusqueda] = useState("");
+  const [filtroFecha, setFiltroFecha] = useState("todas");
+  const [fechaPersonalizada, setFechaPersonalizada] = useState("");
+  const [mostrarSelectorFecha, setMostrarSelectorFecha] = useState(false);
+  const [mostrarMasFiltros, setMostrarMasFiltros] = useState(false);
   const [seleccionada, setSeleccionada] = useState(null);
   const [mostrarCerca, setMostrarCerca] = useState(false);
   const [permisoUbicacion, setPermisoUbicacion] = useState("inicial");
@@ -1080,13 +1083,14 @@ export default function FiestasBA() {
   const [fiestas, setFiestas] = useState(FIESTAS_SEED);
   const [cargandoDatos, setCargandoDatos] = useState(true);
   const [mostrarAdmin, setMostrarAdmin] = useState(false);
+  const editoManualmente = useRef(false);
 
   useEffect(() => {
     let cancelado = false;
     (async () => {
       try {
-        const res = await storage.get(CLAVE_STORAGE, true);
-        if (!cancelado && res?.value) {
+        const res = await window.storage.get(CLAVE_STORAGE, true);
+        if (!cancelado && !editoManualmente.current && res?.value) {
           setFiestas(JSON.parse(res.value));
         }
       } catch (e) {
@@ -1101,9 +1105,10 @@ export default function FiestasBA() {
   }, []);
 
   const guardarLista = async (nuevaLista) => {
+    editoManualmente.current = true;
     setFiestas(nuevaLista);
     try {
-      await storage.set(CLAVE_STORAGE, JSON.stringify(nuevaLista), true);
+      await window.storage.set(CLAVE_STORAGE, JSON.stringify(nuevaLista), true);
     } catch (e) {
       alert("No se pudo guardar. Probá de nuevo.");
     }
@@ -1154,16 +1159,53 @@ export default function FiestasBA() {
       if (ambiente !== "Todos" && f.ambiente !== ambiente) return false;
       if (f.precio > precioMax) return false;
       if (f.edadMinima > edadMax) return false;
+      if (filtroFecha === "hoy" && f.fechaISO !== isoDeHoy(0)) return false;
+      if (filtroFecha === "manana" && f.fechaISO !== isoDeHoy(1)) return false;
+      if (
+        filtroFecha === "personalizada" &&
+        fechaPersonalizada &&
+        f.fechaISO !== fechaPersonalizada
+      )
+        return false;
       if (
         busqueda &&
-        !`${f.nombre} ${f.tematica} ${f.genero} ${f.barrio}`
+        !`${f.nombre} ${f.tematica} ${f.genero} ${f.barrio} ${formatFechaCorta(
+          f.fechaISO
+        )}`
           .toLowerCase()
           .includes(busqueda.toLowerCase())
       )
         return false;
       return true;
     });
-  }, [zona, tematica, tipo, ambiente, precioMax, edadMax, busqueda]);
+  }, [
+    zona,
+    tematica,
+    tipo,
+    ambiente,
+    precioMax,
+    edadMax,
+    busqueda,
+    filtroFecha,
+    fechaPersonalizada,
+  ]);
+
+  const hayFiltrosSecundarios =
+    zona !== "Todas" ||
+    tematica !== "Todas" ||
+    tipo !== "Todos" ||
+    ambiente !== "Todos" ||
+    precioMax !== 40000 ||
+    edadMax !== 99;
+
+  if (cargandoDatos) {
+    return (
+      <div className="min-h-screen w-full bg-[#FAF9F6] flex items-center justify-center">
+        <style>{FONT_STYLES}</style>
+        <Loader2 className="w-6 h-6 text-[#8B7FD9] animate-spin" />
+      </div>
+    );
+  }
 
   if (seleccionada) {
     return (
@@ -1257,105 +1299,167 @@ export default function FiestasBA() {
           />
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1">
-          {ZONAS.map((z) => (
+        {/* Fecha: lo más importante para una app pensada para la espontaneidad */}
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          {[
+            { key: "todas", label: "Todas" },
+            { key: "hoy", label: "Hoy" },
+            { key: "manana", label: "Mañana" },
+          ].map((opt) => (
             <button
-              key={z}
-              onClick={() => setZona(zona === z && z !== "Todas" ? "Todas" : z)}
+              key={opt.key}
+              onClick={() => {
+                setFiltroFecha(opt.key);
+                setMostrarSelectorFecha(false);
+              }}
               className={`font-mono text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${
-                zona === z
-                  ? "bg-[#6B6580] border-[#6B6580] text-white font-semibold"
+                filtroFecha === opt.key
+                  ? "bg-[#FF6B4A] border-[#FF6B4A] text-white font-semibold"
                   : "bg-white border-[#E8E4DA] text-[#6B6580] hover:border-[#A8A2B8]"
               }`}
             >
-              <MapPin className="inline w-3 h-3 mr-1 -mt-0.5" />
-              {z}
+              {opt.label}
             </button>
           ))}
+          <button
+            onClick={() => setMostrarSelectorFecha((v) => !v)}
+            className={`font-mono text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${
+              filtroFecha === "personalizada"
+                ? "bg-[#FF6B4A] border-[#FF6B4A] text-white font-semibold"
+                : "bg-white border-[#E8E4DA] text-[#6B6580] hover:border-[#A8A2B8]"
+            }`}
+          >
+            {filtroFecha === "personalizada" && fechaPersonalizada
+              ? formatFechaCorta(fechaPersonalizada)
+              : "Elegir fecha"}
+          </button>
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
-          {TEMATICAS.map((t) => (
-            <button
-              key={t}
-              onClick={() =>
-                setTematica(tematica === t && t !== "Todas" ? "Todas" : t)
-              }
-              className={`font-mono text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${
-                tematica === t
-                  ? "bg-[#6B6580] border-[#6B6580] text-white font-semibold"
-                  : "bg-white border-[#E8E4DA] text-[#6B6580] hover:border-[#A8A2B8]"
-              }`}
-            >
-              <Sparkles className="inline w-3 h-3 mr-1 -mt-0.5" />
-              {t}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1">
-          {TIPOS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTipo(tipo === t && t !== "Todos" ? "Todos" : t)}
-              className={`font-mono text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${
-                tipo === t
-                  ? "bg-[#6B6580] border-[#6B6580] text-white font-semibold"
-                  : "bg-white border-[#E8E4DA] text-[#6B6580] hover:border-[#A8A2B8]"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1">
-          {AMBIENTES.map((a) => (
-            <button
-              key={a}
-              onClick={() =>
-                setAmbiente(ambiente === a && a !== "Todos" ? "Todos" : a)
-              }
-              className={`font-mono text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${
-                ambiente === a
-                  ? "bg-[#6B6580] border-[#6B6580] text-white font-semibold"
-                  : "bg-white border-[#E8E4DA] text-[#6B6580] hover:border-[#A8A2B8]"
-              }`}
-            >
-              {a}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-3 mt-4">
-          <span className="font-mono text-xs text-[#A8A2B8] whitespace-nowrap">
-            hasta ${precioMax.toLocaleString("es-AR")}
-          </span>
+        {mostrarSelectorFecha && (
           <input
-            type="range"
-            min="3000"
-            max="40000"
-            step="500"
-            value={precioMax}
-            onChange={(e) => setPrecioMax(Number(e.target.value))}
-            className="w-full accent-[#FF6B4A]"
+            type="date"
+            value={fechaPersonalizada}
+            onChange={(e) => {
+              setFechaPersonalizada(e.target.value);
+              setFiltroFecha("personalizada");
+            }}
+            className="font-body mt-2 bg-white border border-[#E8E4DA] rounded-xl py-2 px-3 text-sm text-[#1C1A26] focus:outline-none focus:ring-2 focus:ring-[#8B7FD9]"
           />
-        </div>
+        )}
 
-        <div className="flex items-center gap-3 mt-3">
-          <span className="font-mono text-xs text-[#A8A2B8] whitespace-nowrap">
-            edad: {edadMax} años
-          </span>
-          <input
-            type="range"
-            min="18"
-            max="99"
-            step="1"
-            value={edadMax}
-            onChange={(e) => setEdadMax(Number(e.target.value))}
-            className="w-full accent-[#8B7FD9]"
-          />
-        </div>
+        <button
+          onClick={() => setMostrarMasFiltros((v) => !v)}
+          className="flex items-center gap-1.5 font-mono text-xs text-[#6B6580] mt-4 hover:text-[#1C1A26] transition-colors"
+        >
+          {mostrarMasFiltros ? "Menos filtros" : "Más filtros"}
+          {hayFiltrosSecundarios && !mostrarMasFiltros && (
+            <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B4A]" />
+          )}
+        </button>
+
+        {mostrarMasFiltros && (
+          <div className="mt-3">
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1">
+              {ZONAS.map((z) => (
+                <button
+                  key={z}
+                  onClick={() => setZona(zona === z && z !== "Todas" ? "Todas" : z)}
+                  className={`font-mono text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${
+                    zona === z
+                      ? "bg-[#6B6580] border-[#6B6580] text-white font-semibold"
+                      : "bg-white border-[#E8E4DA] text-[#6B6580] hover:border-[#A8A2B8]"
+                  }`}
+                >
+                  <MapPin className="inline w-3 h-3 mr-1 -mt-0.5" />
+                  {z}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1">
+              {TEMATICAS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() =>
+                    setTematica(tematica === t && t !== "Todas" ? "Todas" : t)
+                  }
+                  className={`font-mono text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${
+                    tematica === t
+                      ? "bg-[#6B6580] border-[#6B6580] text-white font-semibold"
+                      : "bg-white border-[#E8E4DA] text-[#6B6580] hover:border-[#A8A2B8]"
+                  }`}
+                >
+                  <Sparkles className="inline w-3 h-3 mr-1 -mt-0.5" />
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1">
+              {TIPOS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTipo(tipo === t && t !== "Todos" ? "Todos" : t)}
+                  className={`font-mono text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${
+                    tipo === t
+                      ? "bg-[#6B6580] border-[#6B6580] text-white font-semibold"
+                      : "bg-white border-[#E8E4DA] text-[#6B6580] hover:border-[#A8A2B8]"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1">
+              {AMBIENTES.map((a) => (
+                <button
+                  key={a}
+                  onClick={() =>
+                    setAmbiente(ambiente === a && a !== "Todos" ? "Todos" : a)
+                  }
+                  className={`font-mono text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${
+                    ambiente === a
+                      ? "bg-[#6B6580] border-[#6B6580] text-white font-semibold"
+                      : "bg-white border-[#E8E4DA] text-[#6B6580] hover:border-[#A8A2B8]"
+                  }`}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-3 mt-4">
+              <span className="font-mono text-xs text-[#A8A2B8] whitespace-nowrap">
+                hasta ${precioMax.toLocaleString("es-AR")}
+              </span>
+              <input
+                type="range"
+                min="3000"
+                max="40000"
+                step="500"
+                value={precioMax}
+                onChange={(e) => setPrecioMax(Number(e.target.value))}
+                className="w-full accent-[#FF6B4A]"
+              />
+            </div>
+
+            <div className="flex items-center gap-3 mt-3">
+              <span className="font-mono text-xs text-[#A8A2B8] whitespace-nowrap">
+                edad: {edadMax} años
+              </span>
+              <input
+                type="range"
+                min="18"
+                max="99"
+                step="1"
+                value={edadMax}
+                onChange={(e) => setEdadMax(Number(e.target.value))}
+                className="w-full accent-[#8B7FD9]"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Resultados */}
@@ -1371,7 +1475,8 @@ export default function FiestasBA() {
             ambiente !== "Todos" ||
             busqueda ||
             precioMax !== 40000 ||
-            edadMax !== 99) && (
+            edadMax !== 99 ||
+            filtroFecha !== "todas") && (
             <button
               onClick={() => {
                 setZona("Todas");
@@ -1381,6 +1486,9 @@ export default function FiestasBA() {
                 setBusqueda("");
                 setPrecioMax(40000);
                 setEdadMax(99);
+                setFiltroFecha("todas");
+                setFechaPersonalizada("");
+                setMostrarSelectorFecha(false);
               }}
               className="font-mono text-xs text-[#FF6B4A] flex items-center gap-1"
             >
@@ -1437,7 +1545,7 @@ export default function FiestasBA() {
 
                 <div className="flex items-center justify-between pt-3 border-t border-[#E8E4DA]">
                   <div className="font-mono text-xs text-[#6B6580]">
-                    {f.fecha} · {f.hora}
+                    {formatFechaCorta(f.fechaISO)} · {f.hora}
                   </div>
                   <div className="flex items-center gap-1 font-mono text-sm font-semibold text-[#FF6B4A]">
                     <Ticket className="w-3.5 h-3.5" />${f.precio.toLocaleString("es-AR")}
@@ -1475,4 +1583,3 @@ export default function FiestasBA() {
     </div>
   );
 }
-
