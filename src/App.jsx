@@ -93,11 +93,21 @@ const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}`;
 
 async function leerFiestasGuardadas() {
   const res = await fetch(`${JSONBIN_URL}/latest`, {
-    headers: { "X-Master-Key": JSONBIN_KEY },
+    headers: { 
+      "X-Master-Key": JSONBIN_KEY,
+      // Forzar a que no se use caché en el navegador
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0"
+    },
+    // Vital para evitar que dispositivos móviles guarden la respuesta vieja
+    cache: "no-store" 
   });
+  
   if (!res.ok) throw new Error("No se pudo leer");
   const datos = await res.json();
   const contenido = datos.record;
+  
   if (Array.isArray(contenido)) return contenido;
   if (Array.isArray(contenido?.fiestas)) return contenido.fiestas;
   return [];
