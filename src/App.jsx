@@ -195,6 +195,18 @@ async function subirImagen(file) {
   return datos.data.url;
 }
 
+async function subirImagenDesdeUrl(url) {
+  const formData = new FormData();
+  formData.append("image", url);
+  const res = await fetch(
+    `https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`,
+    { method: "POST", body: formData }
+    );
+  const datos = await res.json();
+  if (!datos.success) throw new Error("No se pudo subir la imagen");
+  return datos.data.url;
+}
+
 const FONT_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
   .font-display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.04em; }
@@ -1080,7 +1092,58 @@ function ImportarFiestas({ fiestas, onImportar, onCancelar }) {
   const [error, setError] = useState(null);
   const [geocodificando, setGeocodificando] = useState(false);
   const [progresoGeo, setProgresoGeo] = useState({ hecho: 0, total: 0 });
+  const [subiendoFotos, setSubiendoFotos] = useState(false);
+  const [progresoFotos, setProgresoFotos] = useState({ hecho: 0, total: 0 });
 
+const normalizarFotos = async (lista) => {
+  const conFotos = lista.filter(
+    (f) => f.flyer || (f.fotosExtra && f.fotosExtra.length > 0)
+    );
+  if (conFotos.length === 0) return lista;
+  
+  setSubiendoFotos(true);
+  setProgresoFotos({ hecho: 0, total: conFotos.length });
+  
+  let actualizada = [...lista];
+  for (let i = 0; i < conFotos.length; i++) {
+    const f = conFotos[i];
+    let nuevoFlyer = f.flyer;
+    if (f.flyer) {
+      try {
+        nuevoFlyer = await subirImagenDesdeUrl(f.flyer);
+      } catch (e) {
+        nuevoFlyer = f.flyer;
+      }
+    }
+    const nuevasExtra = [];
+    for (const url of f.fotosExtra || []) {
+      try {
+        nuevasExtra.push(await subirImagenDesdeUrl(url));
+      } catch (e) {
+        nuevasExtra.push(url);
+      }
+    }
+    actualizada = actualizada.map((x) =>
+      x.id === f.id ? { ...x, flyer: nuevoFlyer, fotosExtra: nuevasExtra } : x
+      );
+    setFilas((actuales) =>
+      actuales
+      ? actuales.map((x) =>
+        x.id === f.id
+        ? { ...x, flyer: nuevoFlyer, fotosExtra: nuevasExtra }
+        : x
+        )
+      : actuales
+      );
+    setProgresoFotos({ hecho: i + 1, total: conFotos.length });
+    if (i < conFotos.length - 1) {
+      await new Promise((r) => setTimeout(r, 400));
+    }
+  }
+  setSubiendoFotos(false);
+  return actualizada;
+};
+  
   const geocodificarTodas = async (lista) => {
     const conDireccion = lista.filter((f) => f._direccionParaUbicar);
     if (conDireccion.length === 0) return;
@@ -1117,7 +1180,10 @@ function ImportarFiestas({ fiestas, onImportar, onCancelar }) {
         const validas = parseadas.filter(Boolean);
         setFilasInvalidas(parseadas.length - validas.length);
         setFilas(validas);
-        geocodificarTodas(validas);
+        (async () => {
+          const conFotosOk = await normalizarFotos(validas);
+          geocodificarTodas(conFotosOk);
+        })();
       },
       error: () => setError("No se pudo leer el archivo. Revisá el formato."),
     });
@@ -1226,7 +1292,16 @@ function ImportarFiestas({ fiestas, onImportar, onCancelar }) {
             </div>
           )}
 
-          {geocodificando && (
+          {subiendoFotos && (
+          <div className="flex items-center gap-2 bg-[#EAE6F7] border border-[#D9D2F0] rounded-xl p-3 mb-3">
+          <Loader2 className="w-3.5 h-3.5 text-[#8B7FD9] animate-spin shrink-0" />
+          <p className="font-body text-xs text-[#4A4460]">
+          Optimizando fotos... {progresoFotos.hecho}/{progresoFotos.total}
+          </p>
+          </div>
+        )}
+        
+        {geocodificando && (
             <div className="flex items-center gap-2 bg-[#EAE6F7] border border-[#D9D2F0] rounded-xl p-3 mb-3">
               <Loader2 className="w-3.5 h-3.5 text-[#8B7FD9] animate-spin shrink-0" />
               <p className="font-body text-xs text-[#4A4460]">
@@ -1264,7 +1339,7 @@ function ImportarFiestas({ fiestas, onImportar, onCancelar }) {
         <button
           type="button"
           onClick={confirmarImportacion}
-          disabled={!filas || filas.length === 0}
+          disabled={!filas || filas.length === 0 || subiendoFotos || geocodificando}
           className="flex-1 flex items-center justify-center gap-2 font-body text-sm font-semibold bg-[#1C1A26] text-white py-3 rounded-full hover:opacity-90 transition-opacity disabled:opacity-40"
         >
           <Upload className="w-4 h-4" />
