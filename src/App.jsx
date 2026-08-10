@@ -87,7 +87,34 @@ const BARRIOS_BA = [
   "Tandil", "Bahía Blanca",
 ];
 const RADIO_CERCA_KM = 15;
-const CLAVE_STORAGE = "fiestas-ba:lista";
+const JSONBIN_ID = "6a7a0f83f5f4af5e2903780e";
+const JSONBIN_KEY = "$2a$10$7Huqva4x/5QVgMFeY3tO3eezVRJus7cbHDXqbva.sy5UAIvuK7A6C";
+const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}`;
+
+async function leerFiestasGuardadas() {
+  const res = await fetch(`${JSONBIN_URL}/latest`, {
+    headers: { "X-Master-Key": JSONBIN_KEY },
+  });
+  if (!res.ok) throw new Error("No se pudo leer");
+  const datos = await res.json();
+  const contenido = datos.record;
+  if (Array.isArray(contenido)) return contenido;
+  if (Array.isArray(contenido?.fiestas)) return contenido.fiestas;
+  return [];
+}
+
+async function guardarFiestasRemoto(lista) {
+  const res = await fetch(JSONBIN_URL, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Master-Key": JSONBIN_KEY,
+    },
+    body: JSON.stringify(lista),
+  });
+  if (!res.ok) throw new Error("No se pudo guardar");
+}
+
 const GRADIENTES_DEFECTO = [
   "linear-gradient(135deg, #FF6B4A 0%, #8B7FD9 100%)",
   "linear-gradient(135deg, #8B7FD9 0%, #FF6B4A 60%)",
@@ -1490,12 +1517,12 @@ export default function FiestasBA() {
     let cancelado = false;
     (async () => {
       try {
-        const res = await window.storage.get(CLAVE_STORAGE, true);
-        if (!cancelado && !editoManualmente.current && res?.value) {
-          setFiestas(JSON.parse(res.value));
+        const lista = await leerFiestasGuardadas();
+        if (!cancelado && !editoManualmente.current) {
+          setFiestas(lista);
         }
       } catch (e) {
-        // Todavía no hay datos guardados: seguimos con la lista inicial.
+        // Sin conexión o el bin no responde: seguimos con la lista inicial.
       } finally {
         if (!cancelado) setCargandoDatos(false);
       }
@@ -1509,7 +1536,7 @@ export default function FiestasBA() {
     editoManualmente.current = true;
     setFiestas(nuevaLista);
     try {
-      await window.storage.set(CLAVE_STORAGE, JSON.stringify(nuevaLista), true);
+      await guardarFiestasRemoto(nuevaLista);
     } catch (e) {
       alert("No se pudo guardar. Probá de nuevo.");
     }
