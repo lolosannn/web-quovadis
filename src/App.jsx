@@ -87,6 +87,43 @@ const BARRIOS_BA = [
   "Tandil", "Bahía Blanca",
 ];
 const RADIO_CERCA_KM = 15;
+
+// Feriados nacionales de Argentina (actualizar cada año)
+const FERIADOS_AR = [
+  "2026-01-01", "2026-02-16", "2026-02-17", "2026-03-23", "2026-03-24",
+  "2026-04-02", "2026-04-03", "2026-05-01", "2026-05-25", "2026-06-15",
+  "2026-06-20", "2026-07-09", "2026-07-10", "2026-08-17", "2026-10-12",
+  "2026-11-23", "2026-12-07", "2026-12-08", "2026-12-25",
+];
+
+function esVisperaDeFeriado(fechaISO) {
+  const [y, m, d] = fechaISO.split("-").map(Number);
+  const fecha = new Date(y, m - 1, d);
+  fecha.setDate(fecha.getDate() + 1);
+  const siguienteISO = fecha.toISOString().slice(0, 10);
+  return FERIADOS_AR.includes(siguienteISO);
+}
+
+const ETIQUETAS_DIAS_FIJOS = {
+  viernes: "Viernes",
+  sabado: "Sábados",
+  vispera_feriado: "Vísperas de feriado",
+};
+
+function coincideDiaFijo(diasFijos, fechaISO) {
+  if (!diasFijos || diasFijos.length === 0) return false;
+  const [y, m, d] = fechaISO.split("-").map(Number);
+  const diaSemana = new Date(y, m - 1, d).getDay();
+  if (diasFijos.includes("viernes") && diaSemana === 5) return true;
+  if (diasFijos.includes("sabado") && diaSemana === 6) return true;
+  if (diasFijos.includes("vispera_feriado") && esVisperaDeFeriado(fechaISO)) return true;
+  return false;
+}
+
+function formatDiasFijos(diasFijos) {
+  if (!diasFijos || diasFijos.length === 0) return "";
+  return diasFijos.map((d) => ETIQUETAS_DIAS_FIJOS[d] || d).join(" · ");
+}
 const JSONBIN_ID = "6a7a0f83f5f4af5e2903780e";
 const JSONBIN_KEY = "$2a$10$7Huqva4x/5QVgMFeY3tO3eezVRJus7cbHDXqbva.sy5UAIvuK7A6C";
 const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}`;
@@ -477,7 +514,7 @@ function DetalleFiesta({ fiesta, onVolver }) {
         </h2>
         <div className="flex items-center gap-1.5 text-[#6B6580] text-xs font-body mb-4">
           <MapPin className="w-3.5 h-3.5 text-[#FF6B4A]" />
-          {fiesta.barrio} · {formatFechaCorta(fiesta.fechaISO)} · {fiesta.hora}
+          {fiesta.barrio} · {fiesta.diasFijos && fiesta.diasFijos.length > 0 ? formatDiasFijos(fiesta.diasFijos) : formatFechaCorta(fiesta.fechaISO)} · {fiesta.hora}
         </div>
 
         <p className="font-body text-sm text-[#6B6580] leading-relaxed mb-6">
@@ -983,6 +1020,7 @@ const COLUMNAS_CSV = [
   "nombre", "tematica", "zona", "localidad", "direccion", "precio", "fecha",
   "hora", "descripcion", "tipo", "ambiente", "edadMinima",
   "organizador", "telefonos", "link", "flyer_url", "fotos_urls",
+  "dias_fijos",
 ];
 
 function descargarPlantillaCSV() {
@@ -993,6 +1031,7 @@ function descargarPlantillaCSV() {
     "18", "Facu (Neón Sur)", "+54 9 11 4455-6677", "https://instagram.com/neonsur",
     "https://i.postimg.cc/xxxxxxx/flyer.jpg",
     "https://i.postimg.cc/yyyyyyy/foto2.jpg;https://i.postimg.cc/zzzzzzz/foto3.jpg",
+    "",
   ];
   const csv =
     COLUMNAS_CSV.join(",") +
@@ -1032,7 +1071,12 @@ function filaAFiesta(fila, indice) {
   const nombre = (fila.nombre || "").trim();
   const localidad = (fila.localidad || "").trim();
   const fecha = (fila.fecha || "").trim();
-  if (!nombre || !localidad || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return null;
+  const diasFijos = (fila.dias_fijos || "")
+    .split(";")
+    .map((d) => d.trim().toLowerCase())
+    .filter((d) => ["viernes", "sabado", "vispera_feriado"].includes(d));
+  const fechaValida = /^\d{4}-\d{2}-\d{2}$/.test(fecha);
+  if (!nombre || !localidad || (!fechaValida && diasFijos.length === 0)) return null;
 
   const tematica = GENEROS_MUSICALES.includes((fila.tematica || "").trim())
     ? fila.tematica.trim()
@@ -1061,7 +1105,8 @@ function filaAFiesta(fila, indice) {
     zona: localidad,
     barrio: direccion || localidad,
     precio: Number(fila.precio) || 0,
-    fechaISO: fecha,
+    fechaISO: fechaValida ? fecha : "",
+    diasFijos,
     hora: (fila.hora || "").trim(),
     genero: tematica,
     vibe: (fila.descripcion || "").trim(),
@@ -1318,7 +1363,7 @@ const normalizarFotos = async (lista) => {
                   key={i}
                   className="font-mono text-[10px] text-[#6B6580] truncate"
                 >
-                  {f.nombre} — {f.zona} · {formatFechaCorta(f.fechaISO)}
+                  {f.nombre} — {f.zona} · {f.diasFijos && f.diasFijos.length > 0 ? formatDiasFijos(f.diasFijos) : formatFechaCorta(f.fechaISO)}
                   {f._direccionParaUbicar &&
                     (f.lat != null ? " · 📍" : !geocodificando ? " · sin ubicar" : "")}
                 </p>
@@ -1506,7 +1551,7 @@ function AdminView({ fiestas, onGuardarLista, onVolver }) {
                       {f.nombre}
                     </p>
                     <p className="font-mono text-[10px] text-[#A8A2B8] truncate">
-                      {f.zona} · {formatFechaCorta(f.fechaISO)}
+                      {f.zona} · {f.diasFijos && f.diasFijos.length > 0 ? formatDiasFijos(f.diasFijos) : formatFechaCorta(f.fechaISO)}
                     </p>
                   </div>
                   <button
@@ -1682,14 +1727,21 @@ export default function FiestasBA() {
       if (ambiente !== "Todos" && f.ambiente !== ambiente) return false;
       if (f.precio > precioMax) return false;
       if (f.edadMinima > edadMax) return false;
-      if (filtroFecha === "hoy" && f.fechaISO !== isoDeHoy(0)) return false;
-      if (filtroFecha === "manana" && f.fechaISO !== isoDeHoy(1)) return false;
-      if (
-        filtroFecha === "personalizada" &&
-        fechaPersonalizada &&
-        f.fechaISO !== fechaPersonalizada
-      )
-        return false;
+      if (filtroFecha === "hoy") {
+        const objetivo = isoDeHoy(0);
+        if (f.fechaISO !== objetivo && !coincideDiaFijo(f.diasFijos, objetivo)) return false;
+      }
+      if (filtroFecha === "manana") {
+        const objetivo = isoDeHoy(1);
+        if (f.fechaISO !== objetivo && !coincideDiaFijo(f.diasFijos, objetivo)) return false;
+      }
+      if (filtroFecha === "personalizada" && fechaPersonalizada) {
+        if (
+          f.fechaISO !== fechaPersonalizada &&
+          !coincideDiaFijo(f.diasFijos, fechaPersonalizada)
+        )
+          return false;
+      }
       if (
         busqueda &&
         !`${f.nombre} ${f.tematica} ${f.genero} ${f.barrio} ${formatFechaCorta(
@@ -2118,7 +2170,7 @@ export default function FiestasBA() {
 
                 <div className="flex items-center justify-between pt-3 border-t border-[#E8E4DA]">
                   <div className="font-mono text-xs text-[#6B6580]">
-                    {formatFechaCorta(f.fechaISO)} · {f.hora}
+                    {f.diasFijos && f.diasFijos.length > 0 ? formatDiasFijos(f.diasFijos) : formatFechaCorta(f.fechaISO)} · {f.hora}
                   </div>
                   <div className="flex items-center gap-1 font-mono text-sm font-semibold text-[#FF6B4A]">
                     <Ticket className="w-3.5 h-3.5" />${f.precio.toLocaleString("es-AR")}
