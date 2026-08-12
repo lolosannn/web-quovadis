@@ -407,6 +407,18 @@ function CercaView({ fiestas, userPos, permiso, error, onPedirUbicacion, onVolve
       .slice(0, 8);
   }, [fiestas, userPos]);
 
+  const todasLasFiestasConUbicacion = useMemo(() => {
+    if (!userPos) return [];
+    return fiestas
+      .filter((f) => f.lat != null && f.lng != null)
+      .map((f) => ({
+        ...f,
+        distancia: distanciaKm(userPos.lat, userPos.lng, f.lat, f.lng),
+        angulo: orientacionGrados(userPos.lat, userPos.lng, f.lat, f.lng),
+      }))
+      .sort((a, b) => a.distancia - b.distancia);
+  }, [fiestas, userPos]);
+
   return (
     <div className="min-h-screen w-full bg-[#FAF9F6] text-[#1C1A26]">
       <style>{FONT_STYLES}</style>
@@ -478,21 +490,29 @@ function CercaView({ fiestas, userPos, permiso, error, onPedirUbicacion, onVolve
           </div>
         )}
 
-        {permiso === "concedido" && cercanas.length === 0 && (
+        {permiso === "concedido" && todasLasFiestasConUbicacion.length === 0 && (
           <div className="text-center py-16">
             <p className="font-display text-3xl text-[#A8A2B8] mb-2">
-              NADA CERCA
+              SIN UBICACIONES
             </p>
             <p className="font-body text-sm text-[#A8A2B8]">
-              No encontramos fiestas a menos de {RADIO_CERCA_KM}km tuyo.
+              No hay fiestas con ubicación cargada aún.
             </p>
           </div>
         )}
 
-        {permiso === "concedido" && cercanas.length > 0 && (
+        {permiso === "concedido" && todasLasFiestasConUbicacion.length > 0 && (
           <>
+            {cercanas.length === 0 && (
+              <div className="flex items-start gap-3 bg-[#FFF6E0] border border-[#F0DFA8] rounded-2xl p-4 mb-6">
+                <AlertCircle className="w-4 h-4 text-[#B8860B] shrink-0 mt-0.5" />
+                <p className="font-body text-xs text-[#6B5A1E] leading-relaxed">
+                  No hay fiestas a menos de {RADIO_CERCA_KM}km, pero mostramos todas las que encontramos.
+                </p>
+              </div>
+            )}
             <MapaCercano
-              fiestas={cercanas}
+              fiestas={cercanas.length > 0 ? cercanas : todasLasFiestasConUbicacion}
               userPos={userPos}
               onSeleccionar={onSeleccionar}
             />
@@ -620,6 +640,22 @@ function DetalleFiesta({ fiesta, onVolver }) {
               </div>
               <span className="font-body text-sm text-[#1C1A26] group-hover:underline break-all">
                 {fiesta.link.replace(/^https?:\/\//, "")}
+              </span>
+            </a>
+          )}
+
+          {fiesta.lat && fiesta.lng && (
+            <a
+              href={`https://www.google.com/maps/?q=${fiesta.lat},${fiesta.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 mb-4 group"
+            >
+              <div className="w-9 h-9 rounded-full bg-[#FFE4DA] flex items-center justify-center shrink-0">
+                <MapPin className="w-4 h-4 text-[#FF6B4A]" />
+              </div>
+              <span className="font-body text-sm text-[#1C1A26] group-hover:underline">
+                Ver en Google Maps
               </span>
             </a>
           )}
