@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import Papa from "papaparse";
+import { GoogleMap, LoadScript, Marker, InfoWindow } from "@react-google-maps/api";
 import {
   MapPin,
   Search,
@@ -218,6 +219,10 @@ function redimensionarImagen(file, maxAncho = 800, calidad = 0.8) {
 
 const IMGBB_KEY = "dd798c141bfe7d26ee45fd57a48cf92d";
 
+// Configurar Google Maps API Key en variable de entorno
+// Ej: VITE_GOOGLE_MAPS_API_KEY=tu_clave_aqui
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+
 async function subirImagen(file) {
   const dataUrl = await redimensionarImagen(file);
   const base64 = dataUrl.split(",")[1];
@@ -263,6 +268,118 @@ const FONT_STYLES = `
   .ticket-notch::after { right: -10px; }
 `;
 
+function MapaCercano({ fiestas, userPos, onSeleccionar }) {
+  const [markerSeleccionado, setMarkerSeleccionado] = useState(null);
+  const mapRef = useRef(null);
+
+  if (!GOOGLE_MAPS_API_KEY) {
+    return (
+      <div className="bg-[#FFF6E0] border border-[#F0DFA8] rounded-2xl p-4 text-center">
+        <AlertCircle className="w-5 h-5 text-[#B8860B] mx-auto mb-2" />
+        <p className="font-body text-sm text-[#6B5A1E]">
+          Necesitas configurar tu Google Maps API Key para usar el mapa interactivo.
+        </p>
+        <p className="font-body text-xs text-[#6B5A1E] mt-2">
+          Agregá la clave en el archivo .env como VITE_GOOGLE_MAPS_API_KEY
+        </p>
+      </div>
+    );
+  }
+
+  if (!userPos || !userPos.lat || !userPos.lng) {
+    return (
+      <div className="bg-white border border-[#E8E4DA] rounded-2xl p-6 text-center">
+        <Loader2 className="w-6 h-6 text-[#8B7FD9] animate-spin mx-auto mb-3" />
+        <p className="font-body text-sm text-[#6B6580]">
+          Cargando ubicación...
+        </p>
+      </div>
+    );
+  }
+
+  const mapCenter = {
+    lat: userPos.lat,
+    lng: userPos.lng,
+  };
+
+  return (
+    <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
+      <GoogleMap
+        ref={mapRef}
+        mapContainerStyle={{
+          width: "100%",
+          height: "400px",
+          borderRadius: "1rem",
+          border: "1px solid #E8E4DA",
+          marginBottom: "1rem",
+        }}
+        center={mapCenter}
+        zoom={14}
+        options={{
+          disableDefaultUI: false,
+          zoomControl: true,
+          mapTypeControl: false,
+          fullscreenControl: false,
+          streetViewControl: false,
+        }}
+      >
+        {/* Marcador de usuario */}
+        <Marker
+          position={mapCenter}
+          title="Tu ubicación"
+          icon={{
+            url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231A73E8' stroke='white' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Ccircle cx='12' cy='12' r='5' fill='white'/%3E%3C/svg%3E",
+            scaledSize: new window.google.maps.Size(32, 32),
+          }}
+        />
+
+        {/* Marcadores de fiestas */}
+        {fiestas.map((fiesta) => (
+          <Marker
+            key={fiesta.id}
+            position={{ lat: fiesta.lat, lng: fiesta.lng }}
+            title={fiesta.nombre}
+            onClick={() => setMarkerSeleccionado(fiesta)}
+            icon={{
+              url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FF6B4A' stroke='white' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3C/svg%3E",
+              scaledSize: new window.google.maps.Size(40, 40),
+            }}
+          />
+        ))}
+
+        {/* Info Window al hacer clic en un marcador */}
+        {markerSeleccionado && (
+          <InfoWindow
+            position={{
+              lat: markerSeleccionado.lat,
+              lng: markerSeleccionado.lng,
+            }}
+            onCloseClick={() => setMarkerSeleccionado(null)}
+          >
+            <div className="bg-white rounded-lg p-3 max-w-xs">
+              <p className="font-body text-sm font-semibold text-[#1C1A26] mb-1">
+                {markerSeleccionado.nombre}
+              </p>
+              <p className="font-mono text-xs text-[#6B6580] mb-2">
+                {markerSeleccionado.barrio}
+              </p>
+              <button
+                onClick={() => {
+                  onSeleccionar(markerSeleccionado);
+                  setMarkerSeleccionado(null);
+                }}
+                className="font-body text-xs font-semibold text-white bg-[#FF6B4A] px-3 py-1.5 rounded-full hover:opacity-90 transition-opacity w-full"
+              >
+                Ver detalles
+              </button>
+            </div>
+          </InfoWindow>
+        )}
+      </GoogleMap>
+    </LoadScript>
+  );
+}
+
 function CercaView({ fiestas, userPos, permiso, error, onPedirUbicacion, onVolver, onSeleccionar }) {
   useEffect(() => {
     if (permiso === "inicial") {
@@ -289,10 +406,6 @@ function CercaView({ fiestas, userPos, permiso, error, onPedirUbicacion, onVolve
       .sort((a, b) => a.distancia - b.distancia)
       .slice(0, 8);
   }, [fiestas, userPos]);
-
-  const radioMaxKm = Math.max(2, ...cercanas.map((f) => f.distancia), 0.001);
-  const MAPA_PX = 320;
-  const MAPA_MITAD = MAPA_PX / 2;
 
   return (
     <div className="min-h-screen w-full bg-[#FAF9F6] text-[#1C1A26]">
@@ -378,99 +491,13 @@ function CercaView({ fiestas, userPos, permiso, error, onPedirUbicacion, onVolve
 
         {permiso === "concedido" && cercanas.length > 0 && (
           <>
-            <div
-              className="relative mx-auto rounded-2xl border border-[#D8D3C4] mb-3 overflow-hidden"
-              style={{
-                width: MAPA_PX,
-                height: MAPA_PX,
-                background: "#EAE7DC",
-                backgroundImage:
-                  "repeating-linear-gradient(0deg, transparent, transparent 34px, #FFFFFF 34px, #FFFFFF 37px), repeating-linear-gradient(90deg, transparent, transparent 34px, #FFFFFF 34px, #FFFFFF 37px)",
-              }}
-            >
-              {/* avenidas principales */}
-              <div
-                className="absolute bg-[#F4D98B]"
-                style={{ top: MAPA_MITAD - 6, left: 0, width: "100%", height: 12 }}
-              />
-              <div
-                className="absolute bg-[#F4D98B]"
-                style={{ left: MAPA_MITAD - 6, top: 0, height: "100%", width: 12 }}
-              />
-
-              {/* parche verde tipo plaza */}
-              <div
-                className="absolute rounded-md bg-[#C9E4C5]"
-                style={{ width: 54, height: 40, top: 26, left: 24 }}
-              />
-              {/* parche celeste tipo laguna */}
-              <div
-                className="absolute rounded-full bg-[#BBDDF5]"
-                style={{ width: 46, height: 34, bottom: 30, right: 20 }}
-              />
-
-              {/* Usuario, estilo Google Maps */}
-              <div
-                className="absolute rounded-full bg-[#CFE3FF]"
-                style={{
-                  width: 34,
-                  height: 34,
-                  top: MAPA_MITAD - 17,
-                  left: MAPA_MITAD - 17,
-                }}
-              />
-              <div
-                className="absolute rounded-full bg-[#1A73E8] border-[3px] border-white shadow"
-                style={{
-                  width: 16,
-                  height: 16,
-                  top: MAPA_MITAD - 8,
-                  left: MAPA_MITAD - 8,
-                }}
-              />
-
-              {/* Fiestas cercanas, pines tipo Google Maps */}
-              {cercanas.map((f) => {
-                const radioPx =
-                  (f.distancia / radioMaxKm) * (MAPA_MITAD - 34);
-                const rad = (f.angulo * Math.PI) / 180;
-                const x = MAPA_MITAD + radioPx * Math.sin(rad);
-                const y = MAPA_MITAD - radioPx * Math.cos(rad);
-                return (
-                  <button
-                    key={f.id}
-                    onClick={() => onSeleccionar(f)}
-                    className="absolute flex flex-col items-center group z-10"
-                    style={{ left: x, top: y, transform: "translate(-50%, -100%)" }}
-                  >
-                    <div className="bg-white border border-[#E8E4DA] rounded-lg px-2 py-1 mb-0.5 shadow group-hover:border-[#A8A2B8] transition-colors whitespace-nowrap">
-                      <p className="font-body text-[10px] font-semibold text-[#1C1A26] leading-tight">
-                        {f.nombre}
-                      </p>
-                      <p className="font-mono text-[9px] text-[#6B6580] leading-tight">
-                        {f.genero}
-                      </p>
-                      <p className="font-mono text-[9px] text-[#FF6B4A] font-semibold leading-tight">
-                        {f.distancia < 1
-                          ? `${Math.round(f.distancia * 1000)}m`
-                          : `${f.distancia.toFixed(1)}km`}
-                      </p>
-                    </div>
-                    {/* pin tipo Google Maps */}
-                    <svg width="22" height="28" viewBox="0 0 22 28" className="drop-shadow">
-                      <path
-                        d="M11 0C4.9 0 0 4.9 0 11c0 8.25 11 17 11 17s11-8.75 11-17C22 4.9 17.1 0 11 0z"
-                        fill="#EA4335"
-                      />
-                      <circle cx="11" cy="11" r="4.5" fill="#FFFFFF" />
-                    </svg>
-                  </button>
-                );
-              })}
-            </div>
-
+            <MapaCercano
+              fiestas={cercanas}
+              userPos={userPos}
+              onSeleccionar={onSeleccionar}
+            />
             <p className="font-mono text-[10px] text-[#A8A2B8] uppercase tracking-widest text-center">
-              Tocá una fiesta para ver el detalle
+              Hacé clic en los marcadores para ver detalles
             </p>
           </>
         )}
