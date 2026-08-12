@@ -270,6 +270,7 @@ const FONT_STYLES = `
 
 function MapaCercano({ fiestas, userPos, onSeleccionar }) {
   const [markerSeleccionado, setMarkerSeleccionado] = useState(null);
+  const [mapError, setMapError] = useState(null);
   const mapRef = useRef(null);
 
   if (!GOOGLE_MAPS_API_KEY) {
@@ -297,13 +298,27 @@ function MapaCercano({ fiestas, userPos, onSeleccionar }) {
     );
   }
 
+  if (mapError) {
+    return (
+      <div className="bg-[#FFE4DA] border border-[#FF6B4A] rounded-2xl p-4 text-center">
+        <AlertCircle className="w-5 h-5 text-[#FF6B4A] mx-auto mb-2" />
+        <p className="font-body text-sm text-[#FF6B4A]">
+          Error al cargar el mapa: {mapError}
+        </p>
+      </div>
+    );
+  }
+
   const mapCenter = {
     lat: userPos.lat,
     lng: userPos.lng,
   };
 
   return (
-    <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
+    <LoadScript 
+      googleMapsApiKey={GOOGLE_MAPS_API_KEY}
+      onError={() => setMapError("No se pudo cargar Google Maps")}
+    >
       <GoogleMap
         ref={mapRef}
         mapContainerStyle={{
@@ -322,15 +337,13 @@ function MapaCercano({ fiestas, userPos, onSeleccionar }) {
           fullscreenControl: false,
           streetViewControl: false,
         }}
+        onLoad={() => console.log("Mapa cargado correctamente")}
+        onError={() => setMapError("Error al renderizar el mapa")}
       >
         {/* Marcador de usuario */}
         <Marker
           position={mapCenter}
           title="Tu ubicación"
-          icon={{
-            url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231A73E8' stroke='white' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Ccircle cx='12' cy='12' r='5' fill='white'/%3E%3C/svg%3E",
-            scaledSize: new window.google.maps.Size(32, 32),
-          }}
         />
 
         {/* Marcadores de fiestas */}
@@ -340,10 +353,6 @@ function MapaCercano({ fiestas, userPos, onSeleccionar }) {
             position={{ lat: fiesta.lat, lng: fiesta.lng }}
             title={fiesta.nombre}
             onClick={() => setMarkerSeleccionado(fiesta)}
-            icon={{
-              url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FF6B4A' stroke='white' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3C/svg%3E",
-              scaledSize: new window.google.maps.Size(40, 40),
-            }}
           />
         ))}
 
@@ -356,11 +365,11 @@ function MapaCercano({ fiestas, userPos, onSeleccionar }) {
             }}
             onCloseClick={() => setMarkerSeleccionado(null)}
           >
-            <div className="bg-white rounded-lg p-3 max-w-xs">
-              <p className="font-body text-sm font-semibold text-[#1C1A26] mb-1">
+            <div className="bg-white rounded-lg p-3 max-w-xs" style={{ color: "#1C1A26" }}>
+              <p style={{ fontWeight: "bold", marginBottom: "0.5rem" }}>
                 {markerSeleccionado.nombre}
               </p>
-              <p className="font-mono text-xs text-[#6B6580] mb-2">
+              <p style={{ fontSize: "0.875rem", marginBottom: "0.5rem", color: "#6B6580" }}>
                 {markerSeleccionado.barrio}
               </p>
               <button
@@ -368,7 +377,17 @@ function MapaCercano({ fiestas, userPos, onSeleccionar }) {
                   onSeleccionar(markerSeleccionado);
                   setMarkerSeleccionado(null);
                 }}
-                className="font-body text-xs font-semibold text-white bg-[#FF6B4A] px-3 py-1.5 rounded-full hover:opacity-90 transition-opacity w-full"
+                style={{
+                  width: "100%",
+                  padding: "0.375rem 0.75rem",
+                  backgroundColor: "#FF6B4A",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "999px",
+                  cursor: "pointer",
+                  fontSize: "0.75rem",
+                  fontWeight: "600",
+                }}
               >
                 Ver detalles
               </button>
