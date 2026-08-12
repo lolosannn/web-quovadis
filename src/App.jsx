@@ -1070,7 +1070,7 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
 }
 
 const COLUMNAS_CSV = [
-  "nombre", "tematica", "zona", "localidad", "direccion", "precio", "fecha",
+  "nombre", "tematica", "zona", "localidad", "lat", "lng", "precio", "fecha",
   "hora", "descripcion", "tipo", "ambiente", "edadMinima",
   "organizador", "telefonos", "link", "flyer_url", "fotos_urls",
   "dias_fijos",
@@ -1079,7 +1079,7 @@ const COLUMNAS_CSV = [
 function descargarPlantillaCSV() {
   const ejemplo = [
     "Neón Sur", "Electrónica/Techno", "Zona Norte", "Palermo",
-    "Av. Costanera 1500, Palermo", "8000", "2026-08-15", "23:30",
+    "-34.7597", "-58.4677", "8000", "2026-08-15", "23:30",
     "Rooftop, luces láser, línea hasta las 6am", "Boliche", "Aire libre",
     "18", "Facu (Neón Sur)", "+54 9 11 4455-6677", "https://instagram.com/neonsur",
     "https://i.postimg.cc/xxxxxxx/flyer.jpg",
@@ -1102,24 +1102,6 @@ function descargarPlantillaCSV() {
   URL.revokeObjectURL(url);
 }
 
-async function geocodificarDireccion(direccion, localidad) {
-  const consulta = `${direccion}, ${localidad}, Buenos Aires, Argentina`;
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
-        consulta
-      )}`
-    );
-    const datos = await res.json();
-    if (datos && datos[0]) {
-      return { lat: Number(datos[0].lat), lng: Number(datos[0].lon) };
-    }
-  } catch (e) {
-    // Sin conexión o sin resultado: se deja sin coordenadas.
-  }
-  return { lat: null, lng: null };
-}
-
 function filaAFiesta(fila, indice) {
   const nombre = (fila.nombre || "").trim();
   const localidad = (fila.localidad || "").trim();
@@ -1130,6 +1112,19 @@ function filaAFiesta(fila, indice) {
     .filter((d) => ["viernes", "sabado", "vispera_feriado"].includes(d));
   const fechaValida = /^\d{4}-\d{2}-\d{2}$/.test(fecha);
   if (!nombre || !localidad || (!fechaValida && diasFijos.length === 0)) return null;
+
+  // Validar coordenadas GPS
+  const latStr = (fila.lat || "").trim();
+  const lngStr = (fila.lng || "").trim();
+  const lat = latStr ? Number(latStr) : null;
+  const lng = lngStr ? Number(lngStr) : null;
+  const coordenadasValidas = lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng);
+  
+  // Si no hay coordenadas válidas, no cargamos la fiesta
+  if (!coordenadasValidas) {
+    console.warn(`[CSV] Fila "${nombre}" omitida: coordenadas lat/lng inválidas o vacías`);
+    return null;
+  }
 
   const tematica = GENEROS_MUSICALES.includes((fila.tematica || "").trim())
     ? fila.tematica.trim()
@@ -1147,7 +1142,6 @@ function filaAFiesta(fila, indice) {
   )
     ? fila.ambiente.trim()
     : "Aire libre";
-  const direccion = (fila.direccion || "").trim();
 
   return {
     id: Date.now() + indice,
@@ -1156,7 +1150,7 @@ function filaAFiesta(fila, indice) {
     tematica,
     region,
     zona: localidad,
-    barrio: direccion || localidad,
+    barrio: localidad,
     precio: Number(fila.precio) || 0,
     fechaISO: fechaValida ? fecha : "",
     diasFijos,
@@ -1177,9 +1171,8 @@ function filaAFiesta(fila, indice) {
       .split(";")
       .map((u) => u.trim())
       .filter(Boolean),
-    _direccionParaUbicar: direccion ? `${direccion}, ${localidad}` : null,
-    lat: null,
-    lng: null,
+    lat,
+    lng,
   };
 }
 
@@ -1188,8 +1181,6 @@ function ImportarFiestas({ fiestas, onImportar, onCancelar }) {
   const [filas, setFilas] = useState(null);
   const [filasInvalidas, setFilasInvalidas] = useState(0);
   const [error, setError] = useState(null);
-  const [geocodificando, setGeocodificando] = useState(false);
-  const [progresoGeo, setProgresoGeo] = useState({ hecho: 0, total: 0 });
   const [subiendoFotos, setSubiendoFotos] = useState(false);
   const [progresoFotos, setProgresoFotos] = useState({ hecho: 0, total: 0 });
 
@@ -1241,32 +1232,6 @@ const normalizarFotos = async (lista) => {
   setSubiendoFotos(false);
   return actualizada;
 };
-  
-  const geocodificarTodas = async (lista) => {
-    const conDireccion = lista.filter((f) => f._direccionParaUbicar);
-    if (conDireccion.length === 0) return;
-
-    setGeocodificando(true);
-    setProgresoGeo({ hecho: 0, total: conDireccion.length });
-
-    for (let i = 0; i < conDireccion.length; i++) {
-      const f = conDireccion[i];
-      const { lat, lng } = await geocodificarDireccion(
-        f._direccionParaUbicar.split(",")[0],
-        f.zona
-      );
-      setFilas((actuales) =>
-        actuales
-          ? actuales.map((x) => (x.id === f.id ? { ...x, lat, lng } : x))
-          : actuales
-      );
-      setProgresoGeo({ hecho: i + 1, total: conDireccion.length });
-      if (i < conDireccion.length - 1) {
-        await new Promise((r) => setTimeout(r, 1100)); // no saturar el servicio gratuito
-      }
-    }
-    setGeocodificando(false);
-  };
 
   const procesarCSV = (texto) => {
     setError(null);
@@ -1279,8 +1244,7 @@ const normalizarFotos = async (lista) => {
         setFilasInvalidas(parseadas.length - validas.length);
         setFilas(validas);
         (async () => {
-          const conFotosOk = await normalizarFotos(validas);
-          geocodificarTodas(conFotosOk);
+          await normalizarFotos(validas);
         })();
       },
       error: () => setError("No se pudo leer el archivo. Revisá el formato."),
@@ -1301,8 +1265,7 @@ const normalizarFotos = async (lista) => {
 
   const confirmarImportacion = () => {
     if (!filas || filas.length === 0) return;
-    const limpias = filas.map(({ _direccionParaUbicar, ...f }) => f);
-    onImportar([...fiestas, ...limpias]);
+    onImportar([...fiestas, ...filas]);
   };
 
   return (
