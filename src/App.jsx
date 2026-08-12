@@ -54,11 +54,22 @@ const FIESTAS_SEED = [];
 const TIPOS = ["Todos", "Boliche", "Fiesta espontánea"];
 const AMBIENTES = ["Todos", "Aire libre", "Cerrado"];
 const GENEROS_MUSICALES = [
-  "RKT/Reguetón/Guaracha",
-  "80s/90s/Retro",
-  "Cumbia/Cuarteto",
-  "Electrónica/Techno",
+  "RKT",
+  "Guaracha",
+  "House",
+  "Electrónica",
+  "Reguetón",
+  "Techno",
+  "Trap",
+  "Pop",
+  "Indie",
   "Rock",
+  "Alternativo",
+  "Cumbia/Cuarteto",
+  "Jazz/Blues",
+  "Heavy Metal",
+  "80s/90s/Retro",
+  "Música Cristiana",
 ];
 const REGIONES = ["Zona Norte", "Zona Sur", "Zona Oeste"];
 const BARRIOS_BA = [
@@ -699,7 +710,7 @@ function DetalleFiesta({ fiesta, onVolver }) {
 
 const CAMPOS_VACIOS = {
   nombre: "",
-  tematica: GENEROS_MUSICALES[0],
+  generos: [GENEROS_MUSICALES[0]],
   region: "Zona Norte",
   zona: "",
   barrio: "",
@@ -709,7 +720,7 @@ const CAMPOS_VACIOS = {
   vibe: "",
   tipo: "Boliche",
   ambiente: "Aire libre",
-  edadMinima: "18",
+  edadPromedio: "25",
   organizador: "",
   telefonos: "",
   link: "",
@@ -808,17 +819,27 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
       {campoTexto("nombre", "Nombre de la fiesta", "Ej: Neón Sur")}
       <div className="mb-3">
         <label className="font-mono text-[10px] text-[#A8A2B8] uppercase tracking-widest block mb-1">
-          Género musical (categoría)
+          Géneros musicales (selecciona más de uno si aplica)
         </label>
-        <select
-          value={valores.tematica}
-          onChange={set("tematica")}
-          className="font-body w-full bg-white border border-[#E8E4DA] rounded-xl py-2 px-3 text-sm text-[#1C1A26] focus:outline-none focus:ring-2 focus:ring-[#8B7FD9]"
-        >
+        <div className="grid grid-cols-2 gap-2">
           {GENEROS_MUSICALES.map((g) => (
-            <option key={g}>{g}</option>
+            <label key={g} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={valores.generos.includes(g)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setValores((v) => ({ ...v, generos: [...v.generos, g] }));
+                  } else {
+                    setValores((v) => ({ ...v, generos: v.generos.filter((x) => x !== g) }));
+                  }
+                }}
+                className="w-4 h-4 rounded border-[#E8E4DA] focus:outline-none focus:ring-2 focus:ring-[#8B7FD9]"
+              />
+              <span className="font-body text-sm text-[#1C1A26]">{g}</span>
+            </label>
           ))}
-        </select>
+        </div>
       </div>
 
       <div className="mb-3">
@@ -907,7 +928,7 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
         </div>
       </div>
 
-      {campoTexto("edadMinima", "Edad mínima", "Ej: 18", "number")}
+      {campoTexto("edadPromedio", "Edad promedio de asistentes", "Ej: 25", "number")}
       {campoTexto("organizador", "Nombre del organizador", "Ej: Facu (Neón Sur)")}
       {campoTexto(
         "telefonos",
@@ -1070,18 +1091,18 @@ function FormularioFiesta({ inicial, onGuardar, onCancelar }) {
 }
 
 const COLUMNAS_CSV = [
-  "nombre", "tematica", "zona", "localidad", "lat", "lng", "precio", "fecha",
-  "hora", "descripcion", "tipo", "ambiente", "edadMinima",
+  "nombre", "generos", "zona", "localidad", "lat", "lng", "precio", "fecha",
+  "hora", "descripcion", "tipo", "ambiente", "edadPromedio",
   "organizador", "telefonos", "link", "flyer_url", "fotos_urls",
   "dias_fijos",
 ];
 
 function descargarPlantillaCSV() {
   const ejemplo = [
-    "Neón Sur", "Electrónica/Techno", "Zona Norte", "Palermo",
+    "Neón Sur", "Electrónica;Techno", "Zona Norte", "Palermo",
     "-34.7597", "-58.4677", "8000", "2026-08-15", "23:30",
     "Rooftop, luces láser, línea hasta las 6am", "Boliche", "Aire libre",
-    "18", "Facu (Neón Sur)", "+54 9 11 4455-6677", "https://instagram.com/neonsur",
+    "28", "Facu (Neón Sur)", "+54 9 11 4455-6677", "https://instagram.com/neonsur",
     "https://i.postimg.cc/xxxxxxx/flyer.jpg",
     "https://i.postimg.cc/yyyyyyy/foto2.jpg;https://i.postimg.cc/zzzzzzz/foto3.jpg",
     "",
@@ -1126,9 +1147,16 @@ function filaAFiesta(fila, indice) {
     return null;
   }
 
-  const tematica = GENEROS_MUSICALES.includes((fila.tematica || "").trim())
-    ? fila.tematica.trim()
-    : GENEROS_MUSICALES[0];
+  // Parsear múltiples géneros separados por punto y coma
+  const generosStr = (fila.generos || "").trim();
+  const generos = generosStr
+    .split(";")
+    .map((g) => g.trim())
+    .filter((g) => g.length > 0 && GENEROS_MUSICALES.includes(g));
+  if (generos.length === 0) {
+    generos.push(GENEROS_MUSICALES[0]); // Fallback al primer género
+  }
+
   const region = REGIONES.includes((fila.zona || "").trim())
     ? fila.zona.trim()
     : REGIONES[0];
@@ -1147,7 +1175,7 @@ function filaAFiesta(fila, indice) {
     id: Date.now() + indice,
     grad: GRADIENTES_DEFECTO[indice % GRADIENTES_DEFECTO.length],
     nombre,
-    tematica,
+    generos,
     region,
     zona: localidad,
     barrio: localidad,
@@ -1155,11 +1183,10 @@ function filaAFiesta(fila, indice) {
     fechaISO: fechaValida ? fecha : "",
     diasFijos,
     hora: (fila.hora || "").trim(),
-    genero: tematica,
     vibe: (fila.descripcion || "").trim(),
     tipo,
     ambiente,
-    edadMinima: Number(fila.edadMinima) || 18,
+    edadPromedio: Number(fila.edadPromedio) || 25,
     organizador: (fila.organizador || "").trim(),
     telefonos: (fila.telefonos || "")
       .split(";")
