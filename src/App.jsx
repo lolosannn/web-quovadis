@@ -1,6 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import Papa from "papaparse";
-import { GoogleMap, LoadScript, Marker, InfoWindow } from "@react-google-maps/api";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import {
   MapPin,
   Search,
@@ -219,9 +221,26 @@ function redimensionarImagen(file, maxAncho = 800, calidad = 0.8) {
 
 const IMGBB_KEY = "dd798c141bfe7d26ee45fd57a48cf92d";
 
-// Configurar Google Maps API Key en variable de entorno
-// Ej: VITE_GOOGLE_MAPS_API_KEY=tu_clave_aqui
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+// Iconos personalizados para Leaflet
+const iconoUsuario = L.divIcon({
+  html: `<div style="background: #1A73E8; border: 3px solid white; border-radius: 50%; width: 30px; height: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center;"><div style="width: 12px; height: 12px; background: white; border-radius: 50%;"></div></div>`,
+  iconSize: [30, 30],
+  className: "custom-icon",
+});
+
+const iconoFiesta = L.divIcon({
+  html: `<div style="background: #FF6B4A; border: 2px solid white; border-radius: 50%; width: 35px; height: 35px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; line-height: 1;">🎉</div>`,
+  iconSize: [35, 35],
+  className: "custom-icon",
+});
+
+// Arreglar el problema de Leaflet con los iconos por defecto
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+});
 
 async function subirImagen(file) {
   const dataUrl = await redimensionarImagen(file);
@@ -270,22 +289,7 @@ const FONT_STYLES = `
 
 function MapaCercano({ fiestas, userPos, onSeleccionar }) {
   const [markerSeleccionado, setMarkerSeleccionado] = useState(null);
-  const [mapError, setMapError] = useState(null);
   const mapRef = useRef(null);
-
-  if (!GOOGLE_MAPS_API_KEY) {
-    return (
-      <div className="bg-[#FFF6E0] border border-[#F0DFA8] rounded-2xl p-4 text-center">
-        <AlertCircle className="w-5 h-5 text-[#B8860B] mx-auto mb-2" />
-        <p className="font-body text-sm text-[#6B5A1E]">
-          Necesitas configurar tu Google Maps API Key para usar el mapa interactivo.
-        </p>
-        <p className="font-body text-xs text-[#6B5A1E] mt-2">
-          Agregá la clave en el archivo .env como VITE_GOOGLE_MAPS_API_KEY
-        </p>
-      </div>
-    );
-  }
 
   if (!userPos || !userPos.lat || !userPos.lng) {
     return (
@@ -298,104 +302,71 @@ function MapaCercano({ fiestas, userPos, onSeleccionar }) {
     );
   }
 
-  if (mapError) {
-    return (
-      <div className="bg-[#FFE4DA] border border-[#FF6B4A] rounded-2xl p-4 text-center">
-        <AlertCircle className="w-5 h-5 text-[#FF6B4A] mx-auto mb-2" />
-        <p className="font-body text-sm text-[#FF6B4A]">
-          Error al cargar el mapa: {mapError}
-        </p>
-      </div>
-    );
-  }
-
-  const mapCenter = {
-    lat: userPos.lat,
-    lng: userPos.lng,
-  };
-
   return (
-    <LoadScript 
-      googleMapsApiKey={GOOGLE_MAPS_API_KEY}
-      onError={() => setMapError("No se pudo cargar Google Maps")}
-    >
-      <GoogleMap
-        ref={mapRef}
-        mapContainerStyle={{
-          width: "100%",
-          height: "400px",
-          borderRadius: "1rem",
-          border: "1px solid #E8E4DA",
-          marginBottom: "1rem",
-        }}
-        center={mapCenter}
+    <div className="rounded-2xl border border-[#E8E4DA] overflow-hidden mb-6">
+      <MapContainer
+        center={[userPos.lat, userPos.lng]}
         zoom={14}
-        options={{
-          disableDefaultUI: false,
-          zoomControl: true,
-          mapTypeControl: false,
-          fullscreenControl: false,
-          streetViewControl: false,
-        }}
-        onLoad={() => console.log("Mapa cargado correctamente")}
-        onError={() => setMapError("Error al renderizar el mapa")}
+        style={{ width: "100%", height: "400px" }}
+        ref={mapRef}
       >
-        {/* Marcador de usuario */}
-        <Marker
-          position={mapCenter}
-          title="Tu ubicación"
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
+
+        {/* Marcador de usuario */}
+        <Marker position={[userPos.lat, userPos.lng]} icon={iconoUsuario}>
+          <Popup>
+            <div style={{ textAlign: "center" }}>
+              <p style={{ fontWeight: "bold", margin: 0 }}>Tu ubicación</p>
+            </div>
+          </Popup>
+        </Marker>
 
         {/* Marcadores de fiestas */}
         {fiestas.map((fiesta) => (
           <Marker
             key={fiesta.id}
-            position={{ lat: fiesta.lat, lng: fiesta.lng }}
-            title={fiesta.nombre}
-            onClick={() => setMarkerSeleccionado(fiesta)}
-          />
-        ))}
-
-        {/* Info Window al hacer clic en un marcador */}
-        {markerSeleccionado && (
-          <InfoWindow
-            position={{
-              lat: markerSeleccionado.lat,
-              lng: markerSeleccionado.lng,
+            position={[fiesta.lat, fiesta.lng]}
+            icon={iconoFiesta}
+            eventHandlers={{
+              click: () => setMarkerSeleccionado(fiesta),
             }}
-            onCloseClick={() => setMarkerSeleccionado(null)}
           >
-            <div className="bg-white rounded-lg p-3 max-w-xs" style={{ color: "#1C1A26" }}>
-              <p style={{ fontWeight: "bold", marginBottom: "0.5rem" }}>
-                {markerSeleccionado.nombre}
-              </p>
-              <p style={{ fontSize: "0.875rem", marginBottom: "0.5rem", color: "#6B6580" }}>
-                {markerSeleccionado.barrio}
-              </p>
-              <button
-                onClick={() => {
-                  onSeleccionar(markerSeleccionado);
-                  setMarkerSeleccionado(null);
-                }}
-                style={{
-                  width: "100%",
-                  padding: "0.375rem 0.75rem",
-                  backgroundColor: "#FF6B4A",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "999px",
-                  cursor: "pointer",
-                  fontSize: "0.75rem",
-                  fontWeight: "600",
-                }}
-              >
-                Ver detalles
-              </button>
-            </div>
-          </InfoWindow>
-        )}
-      </GoogleMap>
-    </LoadScript>
+            <Popup>
+              <div style={{ width: "200px" }}>
+                <p style={{ fontWeight: "bold", margin: "0 0 0.5rem 0", color: "#1C1A26" }}>
+                  {fiesta.nombre}
+                </p>
+                <p style={{ margin: "0 0 0.5rem 0", color: "#6B6580", fontSize: "0.875rem" }}>
+                  {fiesta.barrio}
+                </p>
+                <button
+                  onClick={() => {
+                    onSeleccionar(fiesta);
+                    setMarkerSeleccionado(null);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "0.375rem 0.75rem",
+                    backgroundColor: "#FF6B4A",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "999px",
+                    cursor: "pointer",
+                    fontSize: "0.75rem",
+                    fontWeight: "600",
+                  }}
+                >
+                  Ver detalles
+                </button>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
   );
 }
 
